@@ -187,7 +187,7 @@ async function updateTask(id, updates) {
 async function deleteTask(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
-  if (!confirm(`Supprimer \"${task.title}\" ?`)) return;
+  if (!confirm(`Supprimer "${task.title}" ?`)) return;
 
   state.tasks = state.tasks.filter(t => t.id !== id);
   persistAndRender();
@@ -276,16 +276,16 @@ function renderContextAccent() {
 }
 
 function renderSelectOptions() {
-  const pillarOptions = pillars.map(p => `<option value=\"${p.id}\">${p.label}</option>`).join("");
-  const projectOptions = state.projects.map(p => `<option value=\"${p.id}\">${escapeHTML(p.name)}</option>`).join("");
-  const statusOptions = statuses.map(s => `<option value=\"${s.id}\">${s.label}</option>`).join("");
+  const pillarOptions = pillars.map(p => `<option value="${p.id}">${p.label}</option>`).join("");
+  const projectOptions = state.projects.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join("");
+  const statusOptions = statuses.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
 
   const safeSetHTML = (id, html) => { const el = document.querySelector(id); if (el) el.innerHTML = html; };
   safeSetHTML("#quickPillar", pillarOptions);
   safeSetHTML("#projectPillarInput", pillarOptions);
-  safeSetHTML("#contextSwitch", `<option value=\"all\">Tous les piliers</option>${pillarOptions}`);
-  safeSetHTML("#pillarFilter", `<option value=\"all\">Tous</option>${pillarOptions}`);
-  safeSetHTML("#quickProject", `<option value=\"\">Sans projet</option>${projectOptions}`);
+  safeSetHTML("#contextSwitch", `<option value="all">Tous les piliers</option>${pillarOptions}`);
+  safeSetHTML("#pillarFilter", `<option value="all">Tous</option>${pillarOptions}`);
+  safeSetHTML("#quickProject", `<option value="">Sans projet</option>${projectOptions}`);
   safeSetHTML("#quickStatus", statusOptions);
 
   const safeSetVal = (id, val) => { const el = document.querySelector(id); if (el) el.value = val; };
@@ -323,7 +323,7 @@ function renderTaskSections() {
 function renderList(selector, tasks, emptyText) {
   const container = document.querySelector(selector);
   if (!container) return;
-  container.innerHTML = tasks.length ? tasks.map(taskCard).join("") : `<div class=\"empty-state\">${emptyText}</div>`;
+  container.innerHTML = tasks.length ? tasks.map(taskCard).join("") : `<div class="empty-state">${emptyText}</div>`;
 }
 
 function renderWorkPlan(tasks) {
@@ -344,13 +344,13 @@ function workPlanLane(group) {
   if (!isVisible) return "";
 
   return `
-    <section class=\"work-lane ${group.featured ? 'work-lane-featured' : ''}\" data-lane-id=\"${group.id}\">
-      <div class=\"work-lane-header\">
+    <section class="work-lane ${group.featured ? 'work-lane-featured' : ''}" data-lane-id="${group.id}">
+      <div class="work-lane-header">
         <div><h3>${group.title}</h3><p>${group.hint}</p></div>
         <span>${group.tasks.length}</span>
       </div>
-      <div class=\"work-lane-body\">
-        ${group.tasks.length ? group.tasks.map(taskCard).join("") : '<div class=\"empty-state\">Rien ici.</div>'}
+      <div class="work-lane-body">
+        ${group.tasks.length ? group.tasks.map(taskCard).join("") : '<div class="empty-state">Rien ici.</div>'}
       </div>
     </section>
   `;
@@ -362,20 +362,20 @@ function taskCard(task) {
   const isDone = task.status === "done";
 
   return `
-    <article class=\"task-card ${isDone ? 'done' : ''}\" data-task-id=\"${task.id}\" tabindex=\"0\">
-      <div class=\"task-main\">
-        <div class=\"task-content-wrapper\">
-          <p class=\"task-title\">${escapeHTML(task.title)}</p>
-          ${task.description ? `<p class=\"task-description\">${escapeHTML(task.description)}</p>` : ''}
-          <div class=\"meta-row\">
-            <span class=\"pill\" style=\"--pillar-color: ${pillar.color}\">
-              <span class=\"pillar-dot\"></span>${pillar.label}
+    <article class="task-card ${isDone ? 'done' : ''}" data-task-id="${task.id}" tabindex="0">
+      <div class="task-main">
+        <div class="task-content-wrapper">
+          <p class="task-title">${escapeHTML(task.title)}</p>
+          ${task.description ? `<p class="task-description">${escapeHTML(task.description)}</p>` : ''}
+          <div class="meta-row">
+            <span class="pill" style="--pillar-color: ${pillar.color}">
+              <span class="pillar-dot"></span>${pillar.label}
             </span>
             <span>${project ? escapeHTML(project.name) : 'Sans projet'}</span>
             ${task.dueDate ? `<span>${task.dueDate}</span>` : ''}
           </div>
         </div>
-        <div class=\"task-actions\">${taskActions(task)}</div>
+        <div class="task-actions">${taskActions(task)}</div>
       </div>
     </article>
   `;
@@ -386,18 +386,18 @@ function taskActions(task) {
   const focusDisabled = state.tasks.filter(t => t.status === "focus").length >= 3 && task.status !== "focus";
 
   if (task.status !== "focus" && task.status !== "done") {
-    actions.push(`<button class=\"action-button\" data-action=\"focus\" data-id=\"${task.id}\" ${focusDisabled ? 'disabled' : ''}>${ICONS.focus}<span>Prioriser</span></button>`);
+    actions.push(`<button class="action-button" data-action="focus" data-id="${task.id}" ${focusDisabled ? 'disabled' : ''}>${ICONS.focus}<span>Prioriser</span></button>`);
   }
   if (task.status !== "planned" && task.status !== "done") {
-    actions.push(`<button class=\"action-button\" data-action=\"planned\" data-id=\"${task.id}\">${ICONS.plan}<span>Planifier</span></button>`);
+    actions.push(`<button class="action-button" data-action="planned" data-id="${task.id}">${ICONS.plan}<span>Planifier</span></button>`);
   }
   if (task.status !== "done") {
-    actions.push(`<button class=\"action-button action-done\" data-action=\"done\" data-id=\"${task.id}\">${ICONS.check}</button>`);
+    actions.push(`<button class="action-button action-done" data-action="done" data-id="${task.id}">${ICONS.check}</button>`);
   } else {
-    actions.push(`<button class=\"action-button\" data-action=\"planned\" data-id=\"${task.id}\">${ICONS.reopen}<span>Réouvrir</span></button>`);
+    actions.push(`<button class="action-button" data-action="planned" data-id="${task.id}">${ICONS.reopen}<span>Réouvrir</span></button>`);
   }
-  actions.push(`<button class=\"action-button\" data-action=\"edit-task\" data-id=\"${task.id}\">${ICONS.edit}</button>`);
-  actions.push(`<button class=\"action-button action-danger\" data-action=\"delete\" data-id=\"${task.id}\">${ICONS.trash}</button>`);
+  actions.push(`<button class="action-button" data-action="edit-task" data-id="${task.id}">${ICONS.edit}</button>`);
+  actions.push(`<button class="action-button action-danger" data-action="delete" data-id="${task.id}">${ICONS.trash}</button>`);
 
   return actions.join("");
 }
@@ -407,7 +407,7 @@ function renderProjects() {
   const container = document.querySelector("#projectList");
   if (!container) return;
   const contextProjects = state.projects.filter(isInDeepWorkContext);
-  container.innerHTML = contextProjects.length ? contextProjects.map(projectCard).join("") : `<div class=\"empty-state\">Aucun projet.</div>`;
+  container.innerHTML = contextProjects.length ? contextProjects.map(projectCard).join("") : `<div class="empty-state">Aucun projet.</div>`;
   renderGantt();
 }
 
@@ -417,19 +417,19 @@ function projectCard(project) {
   const nextAction = state.tasks.find(t => t.projectId === project.id && t.status !== "done");
 
   return `
-    <article class=\"project-card\" data-action=\"open-project\" data-id=\"${project.id}\">
-      <div class=\"project-top\">
+    <article class="project-card" data-action="open-project" data-id="${project.id}">
+      <div class="project-top">
         <div><h3>${escapeHTML(project.name)}</h3>
-          <div class=\"meta-row\">
-            <span class=\"pill\" style=\"--pillar-color: ${pillar.color}\"><span class=\"pillar-dot\"></span>${pillar.label}</span>
+          <div class="meta-row">
+            <span class="pill" style="--pillar-color: ${pillar.color}"><span class="pillar-dot"></span>${pillar.label}</span>
             <span>${progress}% complété</span>
           </div>
         </div>
-        ${project.dueDate ? `<span class=\"deadline-badge\">${project.dueDate}</span>` : ''}
+        ${project.dueDate ? `<span class="deadline-badge">${project.dueDate}</span>` : ''}
       </div>
-      <p class=\"muted\" style=\"font-size: 13px; margin: 8px 0;\">${escapeHTML(project.doneDefinition || '')}</p>
-      <div class=\"meta-row\">
-        <span class=\"muted\">Suivant :</span>
+      <p class="muted" style="font-size: 13px; margin: 8px 0;">${escapeHTML(project.doneDefinition || '')}</p>
+      <div class="meta-row">
+        <span class="muted">Suivant :</span>
         <strong>${nextAction ? escapeHTML(nextAction.title) : 'À définir'}</strong>
       </div>
     </article>
@@ -440,7 +440,7 @@ function renderGantt() {
   const container = document.querySelector("#ganttTimeline");
   if (!container) return;
   const projects = state.projects.filter(p => p.status === "active" && isInDeepWorkContext(p));
-  if (!projects.length) { container.innerHTML = \"\"; return; }
+  if (!projects.length) { container.innerHTML = ""; return; }
 
   const now = new Date();
   let startRange = new Date(now.getTime() - 7 * 86400000);
@@ -457,10 +457,10 @@ function renderGantt() {
     const width = Math.max(5, ((pEnd - pStart) / (endRange - startRange)) * 100);
     
     return `
-      <div class=\"gantt-row\">
-        <div class=\"gantt-project-name\">${escapeHTML(p.name)}</div>
-        <div class=\"gantt-track\">
-          <div class=\"gantt-bar\" style=\"left: ${left}%; width: ${width}%; background: ${pillar.color}\"></div>
+      <div class="gantt-row">
+        <div class="gantt-project-name">${escapeHTML(p.name)}</div>
+        <div class="gantt-track">
+          <div class="gantt-bar" style="left: ${left}%; width: ${width}%; background: ${pillar.color}"></div>
         </div>
       </div>
     `;
@@ -516,22 +516,22 @@ function renderProjectTasks(projectId) {
   const container = document.querySelector("#projectTaskList");
   if (!container) return;
   const tasks = state.tasks.filter(t => t.projectId === projectId);
-  container.innerHTML = tasks.length ? tasks.map(taskCard).join("") : '<div class=\"empty-state\">Aucune tâche.</div>';
+  container.innerHTML = tasks.length ? tasks.map(taskCard).join("") : '<div class="empty-state">Aucune tâche.</div>';
 }
 
-function showToast(message, type = \"info\") {
-  const container = document.querySelector(\"#toastContainer\");
+function showToast(message, type = "info") {
+  const container = document.querySelector("#toastContainer");
   if (!container) return;
-  const toast = document.createElement(\"div\");
+  const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
   container.appendChild(toast);
-  setTimeout(() => { toast.classList.add(\"fade-out\"); setTimeout(() => toast.remove(), 500); }, 3000);
+  setTimeout(() => { toast.classList.add("fade-out"); setTimeout(() => toast.remove(), 500); }, 3000);
 }
 
 function escapeHTML(str) {
-  if (!str) return \"\";
-  const div = document.createElement(\"div\");
+  if (!str) return "";
+  const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
@@ -540,74 +540,74 @@ function escapeHTML(str) {
 function initEventListeners() {
   const safeListen = (id, ev, fn) => { const el = document.querySelector(id); if (el) el.addEventListener(ev, fn); };
 
-  safeListen(\"#quickAddForm\", \"submit\", async (e) => {
+  safeListen("#quickAddForm", "submit", async (e) => {
     e.preventDefault();
-    const id = document.querySelector(\"#editingTaskId\").value;
-    const title = document.querySelector(\"#quickTitle\").value;
-    const pillar = document.querySelector(\"#quickPillar\").value;
-    const projectId = document.querySelector(\"#quickProject\").value;
+    const id = document.querySelector("#editingTaskId").value;
+    const title = document.querySelector("#quickTitle").value;
+    const pillar = document.querySelector("#quickPillar").value;
+    const projectId = document.querySelector("#quickProject").value;
     if (id) {
       await updateTask(id, { 
         title, pillar, projectId, 
-        status: document.querySelector(\"#quickStatus\").value,
-        description: document.querySelector(\"#quickDescription\").value,
-        dueDate: document.querySelector(\"#quickDueDate\").value
+        status: document.querySelector("#quickStatus").value,
+        description: document.querySelector("#quickDescription").value,
+        dueDate: document.querySelector("#quickDueDate").value
       });
     } else {
       await addTask(title, pillar, projectId);
     }
-    document.querySelector(\"#taskDialog\").close();
+    document.querySelector("#taskDialog").close();
   });
 
-  safeListen(\"#openTaskDialog\", \"click\", () => openTaskDialog());
-  safeListen(\"#closeTaskDialog\", \"click\", () => document.querySelector(\"#taskDialog\").close());
-  safeListen(\"#contextSwitch\", \"change\", (e) => { state.deepWorkPillar = e.target.value; persistAndRender(); });
-  safeListen(\"#pillarFilter\", \"change\", (e) => { state.filters.pillar = e.target.value; render(); });
-  safeListen(\"#statusFilter\", \"change\", (e) => { state.filters.status = e.target.value; render(); });
-  safeListen(\"#showArchivesToggle\", \"change\", (e) => { state.showArchives = e.target.checked; render(); });
+  safeListen("#openTaskDialog", "click", () => openTaskDialog());
+  safeListen("#closeTaskDialog", "click", () => document.querySelector("#taskDialog").close());
+  safeListen("#contextSwitch", "change", (e) => { state.deepWorkPillar = e.target.value; persistAndRender(); });
+  safeListen("#pillarFilter", "change", (e) => { state.filters.pillar = e.target.value; render(); });
+  safeListen("#statusFilter", "change", (e) => { state.filters.status = e.target.value; render(); });
+  safeListen("#showArchivesToggle", "change", (e) => { state.showArchives = e.target.checked; render(); });
 
-  safeListen(\"#addProjectButton\", \"click\", () => document.querySelector(\"#projectDialog\").showModal());
-  safeListen(\"#projectForm\", \"submit\", async (e) => {
-    if (e.submitter?.value === \"cancel\") return;
+  safeListen("#addProjectButton", "click", () => document.querySelector("#projectDialog").showModal());
+  safeListen("#projectForm", "submit", async (e) => {
+    if (e.submitter?.value === "cancel") return;
     e.preventDefault();
     await saveProject({
-      name: document.querySelector(\"#projectNameInput\").value,
-      pillar: document.querySelector(\"#projectPillarInput\").value,
-      doneDefinition: document.querySelector(\"#projectDoneInput\").value,
-      startDate: document.querySelector(\"#projectStartInput\").value,
-      dueDate: document.querySelector(\"#projectDueInput\").value
+      name: document.querySelector("#projectNameInput").value,
+      pillar: document.querySelector("#projectPillarInput").value,
+      doneDefinition: document.querySelector("#projectDoneInput").value,
+      startDate: document.querySelector("#projectStartInput").value,
+      dueDate: document.querySelector("#projectDueInput").value
     });
-    document.querySelector(\"#projectDialog\").close();
+    document.querySelector("#projectDialog").close();
   });
 
-  safeListen(\"#closeProjectDetail\", \"click\", () => document.querySelector(\"#projectDetailDialog\").close());
-  safeListen(\"#archiveWeekButton\", \"click\", () => { 
-    if (confirm(\"Archiver les tâches terminées ?\")) {
-      state.tasks = state.tasks.filter(t => t.status !== \"done\");
+  safeListen("#closeProjectDetail", "click", () => document.querySelector("#projectDetailDialog").close());
+  safeListen("#archiveWeekButton", "click", () => { 
+    if (confirm("Archiver les tâches terminées ?")) {
+      state.tasks = state.tasks.filter(t => t.status !== "done");
       persistAndRender();
     }
   });
 
-  document.querySelectorAll(\".tab-button\").forEach(btn => {
-    btn.addEventListener(\"click\", () => {
+  document.querySelectorAll(".tab-button").forEach(btn => {
+    btn.addEventListener("click", () => {
       currentView = btn.dataset.view;
-      document.querySelectorAll(\".tab-button\").forEach(b => b.classList.toggle(\"active\", b === btn));
-      document.querySelectorAll(\".view\").forEach(v => v.classList.toggle(\"active\", v.id === `${currentView}View`));
+      document.querySelectorAll(".tab-button").forEach(b => b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === `${currentView}View`));
       render();
     });
   });
 
-  document.body.addEventListener(\"click\", (e) => {
-    const btn = e.target.closest(\"[data-action]\");
+  document.body.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const { action, id } = btn.dataset;
-    if ([\"focus\", \"planned\", \"done\"].includes(action)) setTaskStatus(id, action);
-    if (action === \"edit-task\") openTaskDialog(id);
-    if (action === \"delete\") deleteTask(id);
-    if (action === \"open-project\") openProjectDetail(id);
+    if (["focus", "planned", "done"].includes(action)) setTaskStatus(id, action);
+    if (action === "edit-task") openTaskDialog(id);
+    if (action === "delete") deleteTask(id);
+    if (action === "open-project") openProjectDetail(id);
   });
 
-  document.querySelectorAll(\"dialog\").forEach(d => d.onclick = (e) => { if (e.target === d) d.close(); });
+  document.querySelectorAll("dialog").forEach(d => d.onclick = (e) => { if (e.target === d) d.close(); });
 }
 
 function persistAndRender() { saveState(); render(); }
