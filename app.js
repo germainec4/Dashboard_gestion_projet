@@ -2,7 +2,15 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.error("Erreur lors de l'initialisation de Supabase:", e);
+  }
+}
 
 const STORAGE_KEY = "multi-focus-engine:v1";
 
@@ -28,13 +36,6 @@ const workPlanGroups = [
   { id: "done", title: "Terminé", hint: "Ce qui est sorti du système actif." },
 ];
 
-const roadmapBuckets = [
-  { id: "now", label: "Maintenant" },
-  { id: "week", label: "Cette semaine" },
-  { id: "month", label: "Ce mois-ci" },
-  { id: "later", label: "Plus tard" },
-];
-
 const ICONS = {
   plus: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>',
   focus: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
@@ -43,18 +44,9 @@ const ICONS = {
   trash: '<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
   edit: '<svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   reopen: '<svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5"/></svg>',
-  arrowRight: '<svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14m-7-7l7 7-7 7"/></svg>',
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-
-const addDaysISO = (days) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-};
-
-const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
 const seedState = {
   deepWorkPillar: "all",
@@ -69,1048 +61,667 @@ let selectedProjectId = null;
 let currentView = "cockpit";
 
 async function loadState() {
-  const { data: projects, error: pError } = await supabase.from('projects').select('*');
-  const { data: tasks, error: tError } = await supabase.from('tasks').select('*');
+  console.log("Démarrage du chargement de l'état...");
+  const localData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   
-  if (pError || tError) {
-    showToast("Erreur de connexion à Supabase", "error");
-    return structuredClone(seedState);
+  if (!supabase) {
+    console.warn("Supabase non configuré. Utilisation du mode local.");
+    return { ...seedState, ...localData };
   }
 
-  const mappedProjects = projects.map(p => ({
-    id: p.id,
-    name: p.name,
-    pillar: p.pillar,
-    doneDefinition: p.done_definition,
-    status: p.status,
-    createdAt: p.created_at,
-    startDate: p.start_date,
-    dueDate: p.due_date
-  }));
+  try {
+    const fetchWithTimeout = (promise) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout Supabase")), 5000))
+    ]);
 
-  const mappedTasks = tasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    description: t.description,
-    pillar: t.pillar,
-    projectId: t.project_id,
-    status: t.status,
-    effort: t.effort,
-    createdAt: t.created_at,
-    dueDate: t.due_date
-  }));
+    console.log("Appel Supabase...");
+    const [pRes, tRes] = await Promise.all([
+      fetchWithTimeout(supabase.from('projects').select('*')),
+      fetchWithTimeout(supabase.from('tasks').select('*'))
+    ]);
+    
+    if (pRes.error || tRes.error) {
+      console.error("Erreur Supabase détectée:", pRes.error || tRes.error);
+      return { ...seedState, ...localData };
+    }
 
-  const localSettings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const mappedProjects = pRes.data.map(p => ({
+      id: p.id,
+      name: p.name,
+      pillar: p.pillar,
+      doneDefinition: p.done_definition,
+      status: p.status,
+      createdAt: p.created_at,
+      startDate: p.start_date,
+      dueDate: p.due_date
+    }));
 
-  return {
-    ...seedState,
-    ...localSettings,
-    projects: mappedProjects,
-    tasks: mappedTasks,
-  };
-}
+    const mappedTasks = tRes.data.map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      pillar: t.pillar,
+      projectId: t.project_id,
+      status: t.status,
+      createdAt: t.created_at,
+      dueDate: t.due_date
+    }));
 
-function openProjectDetail(projectId) {
-  selectedProjectId = projectId;
-  const project = state.projects.find((p) => p.id === projectId);
-  if (!project) return;
-
-  const pillar = pillarById(project.pillar);
-  const progress = projectProgress(projectId);
-
-  document.querySelector("#detailPillar").textContent = pillar.label;
-  document.querySelector("#detailPillar").style.color = pillar.color;
-  document.querySelector("#detailTitle").textContent = project.name;
-  document.querySelector("#detailDoneDefinition").textContent = project.doneDefinition;
-  document.querySelector("#detailProgressBar").style.width = `${progress}%`;
-  document.querySelector("#detailProgressPercent").textContent = `${progress}%`;
-
-  renderProjectTasks(projectId);
-  document.querySelector("#projectDetailDialog").showModal();
-}
-
-function renderProjectTasks(projectId) {
-  const container = document.querySelector("#projectTaskList");
-  const projectTasks = state.tasks.filter((t) => t.projectId === projectId);
-
-  if (projectTasks.length === 0) {
-    container.innerHTML = `<p class="muted" style="text-align: center; padding: 20px;">Aucune tâche pour ce projet.</p>`;
-    return;
+    console.log("Données Supabase chargées avec succès.");
+    return {
+      ...seedState,
+      ...localData,
+      projects: mappedProjects,
+      tasks: mappedTasks,
+    };
+  } catch (e) {
+    console.error("Échec du chargement cloud (basculement local):", e);
+    return { ...seedState, ...localData };
   }
-
-  container.innerHTML = projectTasks.map(taskCard).join("");
 }
 
 async function saveState() {
-  // On ne garde que les réglages d'interface dans le localStorage
-  const settings = {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
     deepWorkPillar: state.deepWorkPillar,
     filters: state.filters,
     showArchives: state.showArchives
+  }));
+}
+
+// Opérations de données
+async function addTask(title, pillar, projectId = "") {
+  const newTask = {
+    id: `task_${Date.now()}`,
+    title,
+    description: "",
+    pillar,
+    projectId,
+    status: "inbox",
+    createdAt: new Date().toISOString(),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-}
 
-async function persistAndRender() {
-  await saveState();
-  render();
-  
-  if (selectedProjectId) {
-    renderProjectTasks(selectedProjectId);
-    const progress = projectProgress(selectedProjectId);
-    const progressBar = document.querySelector("#detailProgressBar");
-    const progressPercent = document.querySelector("#detailProgressPercent");
-    if (progressBar) progressBar.style.width = `${progress}%`;
-    if (progressPercent) progressPercent.textContent = `${progress}%`;
-  }
-}
-
-async function setTaskStatus(taskId, nextStatus) {
-  if (nextStatus === "focus" && !canFocus(taskId)) return;
-  
-  const { error } = await supabase
-    .from('tasks')
-    .update({ status: nextStatus })
-    .eq('id', taskId);
-
-  if (error) {
-    showToast("Erreur lors de la mise à jour", "error");
-    return;
-  }
-
-  state.tasks = state.tasks.map((task) =>
-    task.id === taskId ? { ...task, status: nextStatus } : task,
-  );
+  state.tasks.push(newTask);
   persistAndRender();
+
+  if (supabase) {
+    try {
+      await supabase.from('tasks').insert([{
+        id: newTask.id,
+        title: newTask.title,
+        pillar: newTask.pillar,
+        project_id: newTask.projectId || null,
+        status: newTask.status,
+        created_at: newTask.createdAt
+      }]);
+    } catch (e) { console.error("Erreur synchro insert:", e); }
+  }
 }
 
-async function deleteTask(taskId) {
-  const task = state.tasks.find(t => t.id === taskId);
+async function updateTask(id, updates) {
+  const index = state.tasks.findIndex(t => t.id === id);
+  if (index === -1) return;
+
+  state.tasks[index] = { ...state.tasks[index], ...updates };
+  persistAndRender();
+
+  if (supabase) {
+    try {
+      const dbUpdates = {
+        title: updates.title,
+        description: updates.description,
+        pillar: updates.pillar,
+        project_id: updates.projectId || null,
+        status: updates.status,
+        due_date: updates.dueDate
+      };
+      Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+      
+      await supabase.from('tasks').update(dbUpdates).eq('id', id);
+    } catch (e) { console.error("Erreur synchro update:", e); }
+  }
+}
+
+async function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  persistAndRender();
+
+  if (supabase) {
+    try {
+      await supabase.from('tasks').delete().eq('id', id);
+    } catch (e) { console.error("Erreur synchro delete:", e); }
+  }
+}
+
+async function setTaskStatus(id, status) {
+  const task = state.tasks.find(t => t.id === id);
   if (!task) return;
   
-  if (confirm(`Supprimer la tâche "${task.title}" ?`)) {
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', taskId);
-
-    if (error) {
-      showToast("Erreur lors de la suppression", "error");
+  if (status === "focus") {
+    const focusCount = state.tasks.filter(t => t.status === "focus").length;
+    if (focusCount >= 3) {
+      showToast("Limite de 3 priorités atteinte !", "warning");
       return;
     }
-
-    state.tasks = state.tasks.filter((task) => task.id !== taskId);
-    showToast("Tâche supprimée", "info");
-    persistAndRender();
-  }
-}
-
-async function addTask(title, pillar, projectId) {
-  const newTask = {
-    id: uid("task"),
-    title,
-    description: document.querySelector("#quickDescription").value.trim(),
-    pillar,
-    project_id: projectId || null,
-    status: document.querySelector("#quickStatus").value || "inbox",
-    effort: "30 min",
-    created_at: todayISO(),
-    due_date: document.querySelector("#quickDueDate").value || null,
-  };
-
-  const { error } = await supabase.from('tasks').insert([newTask]);
-
-  if (error) {
-    showToast("Erreur lors de l'ajout", "error");
-    console.error(error);
-    return;
   }
 
-  // Mapper pour le state local
-  state.tasks.unshift({
-    ...newTask,
-    projectId: newTask.project_id,
-    dueDate: newTask.due_date,
-    createdAt: newTask.created_at
-  });
-  
-  showToast("Tâche ajoutée", "success");
-  persistAndRender();
+  await updateTask(id, { status });
 }
 
-async function updateTask(taskId, updates) {
-  const dbUpdates = {
-    title: updates.title,
-    description: updates.description,
-    pillar: updates.pillar,
-    project_id: updates.projectId || null,
-    status: updates.status,
-    due_date: updates.dueDate || null
-  };
-
-  const { error } = await supabase
-    .from('tasks')
-    .update(dbUpdates)
-    .eq('id', taskId);
-
-  if (error) {
-    showToast("Erreur lors de la mise à jour", "error");
-    return;
-  }
-
-  state.tasks = state.tasks.map((task) =>
-    task.id === taskId ? { ...task, ...updates } : task,
-  );
-  persistAndRender();
-}
-
-async function saveProject(data) {
-  const { id, name, pillar, doneDefinition, startDate, dueDate } = data;
-  
-  const dbProject = {
-    id: id || uid("project"),
+// Projets
+async function addProject(name, pillar, doneDefinition, startDate, dueDate) {
+  const newProject = {
+    id: `project_${Date.now()}`,
     name,
     pillar,
-    done_definition: doneDefinition,
-    start_date: startDate,
-    due_date: dueDate,
+    doneDefinition,
     status: "active",
-    created_at: todayISO()
+    createdAt: new Date().toISOString(),
+    startDate,
+    dueDate
   };
 
-  if (id) {
-    const { error } = await supabase
-      .from('projects')
-      .update(dbProject)
-      .eq('id', id);
-
-    if (error) {
-      showToast("Erreur lors de la mise à jour du projet", "error");
-      return;
-    }
-
-    state.projects = state.projects.map(p => p.id === id ? { ...p, ...data } : p);
-    showToast("Projet mis à jour", "success");
-  } else {
-    const { error } = await supabase.from('projects').insert([dbProject]);
-
-    if (error) {
-      showToast("Erreur lors de la création du projet", "error");
-      return;
-    }
-
-    state.projects.push({
-      ...dbProject,
-      doneDefinition: dbProject.done_definition,
-      startDate: dbProject.start_date,
-      dueDate: dbProject.due_date,
-      createdAt: dbProject.created_at
-    });
-    showToast("Projet créé", "success");
-  }
-  
+  state.projects.push(newProject);
   persistAndRender();
-  if (id && selectedProjectId === id) openProjectDetail(id);
+
+  if (supabase) {
+    try {
+      await supabase.from('projects').insert([{
+        id: newProject.id,
+        name: newProject.name,
+        pillar: newProject.pillar,
+        done_definition: newProject.doneDefinition,
+        status: newProject.status,
+        created_at: newProject.createdAt,
+        start_date: newProject.startDate,
+        due_date: newProject.dueDate
+      }]);
+    } catch (e) { console.error("Erreur synchro project insert:", e); }
+  }
 }
 
-function showToast(message, type = "info") {
-  const container = document.querySelector("#toastContainer");
-  if (!container) return;
-  const toast = document.createElement("div");
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  container.appendChild(toast);
+async function updateProject(id, updates) {
+  const index = state.projects.findIndex(p => p.id === id);
+  if (index === -1) return;
 
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(-20px)";
-    toast.style.transition = "opacity 0.3s, transform 0.3s";
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  state.projects[index] = { ...state.projects[index], ...updates };
+  persistAndRender();
+
+  if (supabase) {
+    try {
+      const dbUpdates = {
+        name: updates.name,
+        pillar: updates.pillar,
+        done_definition: updates.doneDefinition,
+        status: updates.status,
+        start_date: updates.startDate,
+        due_date: updates.dueDate
+      };
+      Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+      await supabase.from('projects').update(dbUpdates).eq('id', id);
+    } catch (e) { console.error("Erreur synchro project update:", e); }
+  }
 }
 
+async function deleteProject(id) {
+  state.projects = state.projects.filter(p => p.id !== id);
+  state.tasks = state.tasks.filter(t => t.projectId !== id);
+  persistAndRender();
+
+  if (supabase) {
+    try {
+      await Promise.all([
+        supabase.from('tasks').delete().eq('project_id', id),
+        supabase.from('projects').delete().eq('id', id)
+      ]);
+    } catch (e) { console.error("Erreur synchro project delete:", e); }
+  }
+}
+
+// Helpers
 function pillarById(id) {
   return pillars.find((pillar) => pillar.id === id) || pillars[pillars.length - 1];
 }
 
-function activeContextPillar() {
-  return state.deepWorkPillar === "all" ? null : pillarById(state.deepWorkPillar);
-}
-
-function statusLabel(id) {
-  return statuses.find((status) => status.id === id)?.label || id;
-}
-
 function projectById(id) {
-  return state.projects.find((project) => project.id === id);
+  return state.projects.find((p) => p.id === id);
 }
 
 function isInDeepWorkContext(item) {
-  return state.deepWorkPillar === "all" || item.pillar === state.deepWorkPillar;
-}
-
-function visibleTasks() {
-  return state.tasks.filter((task) => {
-    const deepMatch = isInDeepWorkContext(task);
-    const pillarMatch = state.filters.pillar === "all" || task.pillar === state.filters.pillar;
-    const statusMatch = state.filters.status === "all" || task.status === state.filters.status;
-    return deepMatch && pillarMatch && statusMatch;
-  });
-}
-
-function canFocus(taskId) {
-  const focusTasks = state.tasks.filter((task) => task.status === "focus");
-  const task = state.tasks.find((item) => item.id === taskId);
-  return task?.status === "focus" || focusTasks.length < 3;
-}
-
-async function init() {
-  state = await loadState();
-  initEventListeners();
-  render();
-}
-
-init();
-
-function openProjectEditor(projectId) {
-  const project = projectById(projectId);
-  if (!project) return;
-
-  document.querySelector("#editingProjectId").value = project.id;
-  document.querySelector("#projectNameInput").value = project.name;
-  document.querySelector("#projectPillarInput").value = project.pillar;
-  document.querySelector("#projectDoneInput").value = project.doneDefinition || "";
-  document.querySelector("#projectStartInput").value = project.startDate || project.createdAt || "";
-  document.querySelector("#projectDueInput").value = project.dueDate || "";
-
-  document.querySelector("#projectDialog h2").textContent = "Modifier le projet";
-  document.querySelector("#projectDialog .button-primary").textContent = "Enregistrer";
-  document.querySelector("#projectDialog").showModal();
-}
-
-function formatDeadline(dueDate) {
-  if (!dueDate) return `<span class="deadline-badge none">Pas d'échéance</span>`;
-  
-  const due = new Date(`${dueDate}T12:00:00`);
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-  
-  const diffTime = due - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  let statusClass = "normal";
-  let label = `J-${diffDays}`;
-  
-  if (diffDays < 0) {
-    statusClass = "overdue";
-    label = `Retard (${Math.abs(diffDays)}j)`;
-  } else if (diffDays <= 3) {
-    statusClass = "urgent";
-  } else if (diffDays <= 7) {
-    statusClass = "warning";
-  }
-  
-  return `<span class="deadline-badge ${statusClass}" title="${dueDate}">${label}</span>`;
+  if (state.deepWorkPillar === "all") return true;
+  return item.pillar === state.deepWorkPillar;
 }
 
 function projectProgress(projectId) {
-  const projectTasks = state.tasks.filter((task) => task.projectId === projectId);
-  if (!projectTasks.length) return 0;
-  const doneTasks = projectTasks.filter((task) => task.status === "done");
+  const projectTasks = state.tasks.filter((t) => t.projectId === projectId);
+  if (projectTasks.length === 0) return 0;
+  const doneTasks = projectTasks.filter((t) => t.status === "done");
   return Math.round((doneTasks.length / projectTasks.length) * 100);
 }
 
-function roadmapBucketForProject(project) {
-  if (!project.dueDate) return "later";
+async function archiveDoneTasks() {
+  const doneTasks = state.tasks.filter(t => t.status === "done");
+  if (doneTasks.length === 0) {
+    showToast("Aucune tâche terminée à archiver", "info");
+    return;
+  }
 
-  const dueDate = new Date(`${project.dueDate}T12:00:00`);
-  const now = new Date();
-  const diffDays = Math.ceil((dueDate - now) / 86400000);
+  if (confirm(`Archiver ${doneTasks.length} tâches ?`)) {
+    const doneIds = doneTasks.map(t => t.id);
+    state.tasks = state.tasks.filter(t => t.status !== "done");
+    persistAndRender();
 
-  if (diffDays <= 3) return "now";
-  if (diffDays <= 7) return "week";
-  if (diffDays <= 31) return "month";
-  return "later";
+    if (supabase) {
+      try {
+        await supabase.from('tasks').delete().in('id', doneIds);
+      } catch (e) { console.error("Erreur archivage:", e); }
+    }
+    showToast("Tâches archivées", "success");
+  }
 }
 
-function taskCard(task) {
-  const pillar = pillarById(task.pillar);
-  const project = projectById(task.projectId);
+async function resetDailyFocus() {
+  const focusIds = state.tasks.filter(t => t.status === "focus").map(t => t.id);
+  state.tasks = state.tasks.map(t => t.status === "focus" ? { ...t, status: "planned" } : t);
+  persistAndRender();
 
-  return `
-    <article class="task-card" 
-             data-task-id="${task.id}" 
-             tabindex="0" 
-             draggable="true"
-             aria-label="Modifier la tâche ${escapeHTML(task.title)}">
-      <div class="task-main">
-        <div>
-          <p class="task-title">${escapeHTML(task.title)}</p>
-          ${task.description ? `<p class="task-description">${escapeHTML(task.description)}</p>` : ""}
-          <div class="meta-row">
-            <span class="pill" style="--pillar-color: ${pillar.color}">
-              <span class="pillar-dot"></span>${pillar.label}
-            </span>
-            <span>${project ? escapeHTML(project.name) : "Sans projet"}</span>
-            <span class="pill">${statusLabel(task.status)}</span>
-            ${task.dueDate ? `<span>${task.dueDate}</span>` : ""}
-          </div>
-        </div>
-        <div class="task-actions">${taskActions(task)}</div>
-      </div>
-    </article>
-  `;
+  if (supabase) {
+    try {
+      await supabase.from('tasks').update({ status: 'planned' }).in('id', focusIds);
+    } catch (e) { console.error("Erreur reset focus:", e); }
+  }
 }
 
-function taskActions(task) {
-  const actions = [];
-  const focusDisabled = !canFocus(task.id);
+// Rendu
+function render() {
+  try {
+    renderContextAccent();
+    renderSelectOptions();
+    renderMetrics();
 
-  if (task.status !== "focus" && task.status !== "done") {
-    actions.push(`
-      <button class="action-button" title="Mettre dans les 3 priorités du jour" aria-label="Mettre en priorité jour" data-action="focus" data-id="${task.id}" ${focusDisabled ? "disabled" : ""}>
-        ${ICONS.focus}<span>Prioriser</span>
-      </button>
-    `);
+    const view = currentView;
+    if (view === "cockpit") {
+      renderTaskSections();
+    } else if (view === "map") {
+      renderProjects();
+    } else if (view === "review") {
+      renderReview();
+    }
+  } catch (e) {
+    console.error("Erreur fatale lors du rendu:", e);
   }
+}
 
-  if (task.status !== "planned" && task.status !== "done") {
-    actions.push(`
-      <button class="action-button" title="Planifier pour plus tard" aria-label="Planifier" data-action="planned" data-id="${task.id}">
-        ${ICONS.plan}<span>Planifier</span>
-      </button>
-    `);
-  }
-
-  if (task.status !== "done") {
-    actions.push(`
-      <button class="action-button action-done" title="Marquer comme terminé" aria-label="Marquer comme terminé" data-action="done" data-id="${task.id}">
-        ${ICONS.check}
-      </button>
-    `);
-  }
-
-  if (task.status === "done") {
-    actions.push(`
-      <button class="action-button" title="Remettre dans les tâches planifiées" aria-label="Réouvrir" data-action="planned" data-id="${task.id}">
-        ${ICONS.reopen}<span>Réouvrir</span>
-      </button>
-    `);
-  }
-
-  actions.push(`
-    <button class="action-button action-danger" title="Supprimer la tâche" aria-label="Supprimer" data-action="delete" data-id="${task.id}">
-      ${ICONS.trash}
-    </button>
-  `);
-
-  return actions.join("");
+function renderContextAccent() {
+  const contextPillar = state.deepWorkPillar === "all" ? null : pillarById(state.deepWorkPillar);
+  const el = document.querySelector(".app-shell"); // Select shell or body
+  document.body.dataset.context = contextPillar?.id || "all";
+  document.body.style.setProperty("--context-accent", contextPillar?.color || "#ededed");
 }
 
 function renderSelectOptions() {
   const quickPillarCurrent = document.querySelector("#quickPillar")?.value;
-  const quickStatusCurrent = document.querySelector("#quickStatus")?.value;
+  
   const pillarOptions = pillars
     .map((pillar) => `<option value="${pillar.id}">${pillar.label}</option>`)
     .join("");
+  
   const statusOptions = statuses
     .map((status) => `<option value="${status.id}">${status.label}</option>`)
     .join("");
-  const contextOptions = `<option value="all">Tous les piliers</option>${pillarOptions}`;
-  const filterOptions = `<option value="all">Tous</option>${pillarOptions}`;
+  
   const projectOptions = state.projects
     .map((project) => `<option value="${project.id}">${escapeHTML(project.name)}</option>`)
     .join("");
 
-  document.querySelector("#quickPillar").innerHTML = pillarOptions;
-  document.querySelector("#projectPillarInput").innerHTML = pillarOptions;
-  document.querySelector("#contextSwitch").innerHTML = contextOptions;
-  document.querySelector("#pillarFilter").innerHTML = filterOptions;
-  document.querySelector("#quickProject").innerHTML =
-    `<option value="">Sans projet</option>${projectOptions}`;
-  document.querySelector("#quickStatus").innerHTML = statusOptions;
+  const updateHTML = (id, html) => {
+    const el = document.querySelector(id);
+    if (el) el.innerHTML = html;
+  };
 
-  document.querySelector("#quickPillar").value =
-    state.deepWorkPillar === "all" ? quickPillarCurrent || pillars[0].id : state.deepWorkPillar;
-  document.querySelector("#quickStatus").value = quickStatusCurrent || "inbox";
-  document.querySelector("#contextSwitch").value = state.deepWorkPillar;
-  document.querySelector("#pillarFilter").value = state.filters.pillar;
-  document.querySelector("#statusFilter").value = state.filters.status;
-  document.querySelector("#showArchivesToggle").checked = !!state.showArchives;
+  updateHTML("#quickPillar", pillarOptions);
+  updateHTML("#projectPillarInput", pillarOptions);
+  updateHTML("#contextSwitch", `<option value="all">Tous les piliers</option>${pillarOptions}`);
+  updateHTML("#pillarFilter", `<option value="all">Tous les piliers</option>${pillarOptions}`);
+  updateHTML("#quickProject", `<option value="">Sans projet</option>${projectOptions}`);
+  updateHTML("#quickStatus", statusOptions);
+
+  const qp = document.querySelector("#quickPillar");
+  if (qp) {
+    qp.value = state.deepWorkPillar === "all" ? quickPillarCurrent || pillars[0].id : state.deepWorkPillar;
+  }
+  const cs = document.querySelector("#contextSwitch");
+  if (cs) cs.value = state.deepWorkPillar;
+  const pf = document.querySelector("#pillarFilter");
+  if (pf) pf.value = state.filters.pillar;
+  const sf = document.querySelector("#statusFilter");
+  if (sf) sf.value = state.filters.status;
+  const sa = document.querySelector("#showArchivesToggle");
+  if (sa) sa.checked = !!state.showArchives;
 }
 
 function renderMetrics() {
-  const contextTasks = state.tasks.filter(isInDeepWorkContext);
-  const focusTasks = contextTasks.filter((task) => task.status === "focus");
-
-  document.querySelector("#focusCount").textContent = `${focusTasks.length}/3`;
-  document.querySelector("#focusWarning").classList.toggle("hidden", focusTasks.length <= 3);
+  const focusTasks = state.tasks.filter(t => t.status === "focus");
+  const el = document.querySelector("#focusCount");
+  if (el) {
+    el.textContent = `${focusTasks.length}/3`;
+    el.classList.toggle("warning", focusTasks.length >= 3);
+  }
 }
 
 function renderTaskSections() {
-  const contextTasks = state.tasks.filter(isInDeepWorkContext);
-  const focusTasks = contextTasks.filter((task) => task.status === "focus");
-  const inboxTasks = contextTasks.filter((task) => task.status === "inbox");
-  const operationalTasks = visibleTasks();
-
-  renderList("#focusList", focusTasks, "Aucune priorité. Choisis une prochaine action claire.");
-  renderList("#inboxList", inboxTasks, "Inbox vide. Le système respire.");
-  renderWorkPlan(operationalTasks);
-  initDragAndDrop();
+  renderTasks("focus", "#focusList");
+  renderTasks("inbox", "#inboxList");
+  renderWorkPlan();
 }
 
-function renderList(selector, tasks, emptyText) {
-  document.querySelector(selector).innerHTML = tasks.length
-    ? tasks.map(taskCard).join("")
-    : `<div class="empty-state">${emptyText}</div>`;
-}
-
-function renderWorkPlan(tasks) {
-  if (!tasks.length) {
-    document.querySelector("#workPlan").innerHTML = `<div class="empty-state">Aucune tache pour ce filtre.</div>`;
-    return;
-  }
-
-  const focusTasks = tasks.filter((task) => task.status === "focus");
-  const body = [
-    workPlanLane({
-      id: "focus",
-      title: "Priorites du jour",
-      hint: "Maximum 3. C'est la zone de decision, pas un backlog.",
-      tasks: focusTasks,
-      featured: true,
-    }),
-    ...workPlanGroups.map((group) =>
-      workPlanLane({
-        ...group,
-        tasks: tasks.filter((task) => task.status === group.id),
-      }),
-    ),
-  ].join("");
-
-  const workPlan = document.querySelector("#workPlan");
-  workPlan.innerHTML = body;
-  workPlan.classList.toggle("focus-mode", !state.showArchives);
-}
-
-function workPlanLane(group) {
-  return `
-    <section class="work-lane ${group.featured ? "work-lane-featured" : ""}" data-lane-id="${group.id}">
-      <div class="work-lane-header">
-        <div>
-          <h3>${group.title}</h3>
-          <p>${group.hint}</p>
-        </div>
-        <span>${group.tasks.length}</span>
-      </div>
-      <div class="work-lane-body">
-        ${
-          group.tasks.length
-            ? group.tasks.map(taskCard).join("")
-            : `<div class="empty-state">Rien ici.</div>`
-        }
-      </div>
-    </section>
-  `;
-}
-
-function initDragAndDrop() {
-  const cards = document.querySelectorAll(".task-card");
-  const lanes = document.querySelectorAll(".work-lane");
-
-  cards.forEach(card => {
-    card.addEventListener("dragstart", () => {
-      card.classList.add("dragging");
-    });
-    card.addEventListener("dragend", () => {
-      card.classList.remove("dragging");
-    });
-  });
-
-  lanes.forEach(lane => {
-    lane.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      lane.classList.add("drag-over");
-    });
-
-    lane.addEventListener("dragleave", () => {
-      lane.classList.remove("drag-over");
-    });
-
-    lane.addEventListener("drop", (e) => {
-      e.preventDefault();
-      lane.classList.remove("drag-over");
-      const draggingCard = document.querySelector(".dragging");
-      if (!draggingCard) return;
-
-      const taskId = draggingCard.dataset.taskId;
-      const nextStatus = lane.dataset.laneId;
-      
-      if (nextStatus) {
-        setTaskStatus(taskId, nextStatus);
-      }
-    });
-  });
-}
-
-function renderProjects() {
-  const contextProjects = state.projects.filter(isInDeepWorkContext);
-  document.querySelector("#projectList").innerHTML = contextProjects.length
-    ? contextProjects.map(projectCard).join("")
-    : `<div class="empty-state">Aucun projet actif.</div>`;
-    
-  renderGantt();
-}
-
-function renderGantt() {
-  const container = document.querySelector("#ganttTimeline");
+function renderTasks(status, containerSelector) {
+  const container = document.querySelector(containerSelector);
   if (!container) return;
 
-  // Utilisation du même filtre que pour la liste des projets
-  const projects = state.projects.filter(p => p.status === "active" && isInDeepWorkContext(p));
+  const tasks = state.tasks.filter((task) => task.status === status && isInDeepWorkContext(task));
   
-  if (!projects.length) {
-    container.innerHTML = `<div class="empty-state">Aucun projet actif dans ce contexte pour le Gantt.</div>`;
+  if (tasks.length === 0) {
+    container.innerHTML = `<div class="empty-state">Aucune tâche ici.</div>`;
     return;
   }
 
-  // Calcul de la plage temporelle
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
+  container.innerHTML = tasks.map(taskCard).join("");
+}
 
-  // Bornes par défaut
-  let startRange = new Date(now.getTime() - 14 * 86400000);
-  let endRange = new Date(now.getTime() + 45 * 86400000);
+function renderWorkPlan() {
+  const container = document.querySelector("#workPlan");
+  if (!container) return;
 
-  // Ajuster les bornes en fonction des projets
-  projects.forEach(p => {
-    const pStart = new Date(`${p.startDate || p.createdAt}T12:00:00`);
-    if (pStart < startRange) startRange = new Date(pStart.getTime() - 7 * 86400000);
-    
-    if (p.dueDate) {
-      const pEnd = new Date(`${p.dueDate}T12:00:00`);
-      if (pEnd > endRange) endRange = new Date(pEnd.getTime() + 14 * 86400000);
-    }
-  });
+  const visibleStatuses = state.showArchives ? ["planned", "blocked", "done"] : ["planned"];
+  
+  container.innerHTML = workPlanGroups
+    .filter(group => visibleStatuses.includes(group.id))
+    .map(group => {
+      const groupTasks = state.tasks.filter(t => 
+        t.status === group.id && 
+        isInDeepWorkContext(t) &&
+        (state.filters.pillar === "all" || t.pillar === state.filters.pillar)
+      );
+      
+      return `
+        <div class="work-lane">
+          <div class="lane-header">
+            <h3>${group.title}</h3>
+            <span class="count">${groupTasks.length}</span>
+          </div>
+          <div class="task-list">
+            ${groupTasks.length ? groupTasks.map(taskCard).join("") : '<div class="empty-state">Vide</div>'}
+          </div>
+        </div>
+      `;
+    }).join("");
+}
 
-  const totalDays = Math.ceil((endRange - startRange) / 86400000);
-  // On définit une largeur de base : 25px par jour pour garder une bonne lisibilité
-  const timelineWidth = Math.max(1200, totalDays * 25);
-  container.style.minWidth = `${timelineWidth}px`;
+function taskCard(task) {
+  const pillar = pillarById(task.pillar);
+  const project = task.projectId ? projectById(task.projectId) : null;
+  const isDone = task.status === "done";
 
-  // Header avec les mois
-  const months = [];
-  let curr = new Date(startRange);
-  while (curr <= endRange) {
-    const m = curr.toLocaleString("default", { month: "long" });
-    if (!months.includes(m)) months.push(m);
-    curr.setDate(curr.getDate() + 15);
-  }
-
-  let html = `
-    <div class="gantt-grid-header">
-      <div></div>
-      <div class="gantt-months">
-        ${months.map(m => `<span>${m}</span>`).join("")}
+  return `
+    <div class="task-card ${isDone ? 'done' : ''}" data-id="${task.id}">
+      <div class="task-card-main">
+        <button class="check-button" data-action="toggle-status" data-id="${task.id}" title="Marquer comme fait">
+          ${task.status === 'done' ? '<svg class="icon" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
+        </button>
+        <div class="task-content">
+          <div class="task-title">${escapeHTML(task.title)}</div>
+          <div class="task-meta">
+            <span class="pillar-tag" style="background: ${pillar.color}22; color: ${pillar.color}">
+              ${pillar.label}
+            </span>
+            ${project ? `<span class="project-tag">${escapeHTML(project.name)}</span>` : ""}
+          </div>
+        </div>
+        <div class="task-actions">
+          ${task.status !== 'focus' && !isDone ? `<button class="action-btn" data-action="focus" data-id="${task.id}" title="Priorité jour">★</button>` : ''}
+          <button class="action-btn" data-action="edit-task" data-id="${task.id}" title="Modifier">✎</button>
+          <button class="action-btn danger" data-action="delete" data-id="${task.id}" title="Supprimer">×</button>
+        </div>
       </div>
     </div>
   `;
+}
 
-  // Marqueur Aujourd'hui
-  const todayPos = ((now - startRange) / (endRange - startRange)) * 100;
-  html += `<div class="gantt-today-marker" style="left: calc(var(--gantt-label-width) + var(--gantt-gap) + (100% - var(--gantt-label-width) - var(--gantt-gap)) * ${todayPos / 100})"></div>`;
+function renderProjects() {
+  const container = document.querySelector("#projectList");
+  if (!container) return;
 
-  // Lignes de projet
-  projects.forEach(project => {
-    const pillar = pillarById(project.pillar);
-    const start = new Date(`${project.startDate || project.createdAt}T12:00:00`);
-    const due = project.dueDate ? new Date(`${project.dueDate}T12:00:00`) : new Date(now.getTime() + 86400000);
-    
-    // Calcul position et largeur en %
-    let startPos = ((start - startRange) / (endRange - startRange)) * 100;
-    let endPos = ((due - startRange) / (endRange - startRange)) * 100;
-    
-    // Clipping
-    startPos = Math.max(0, Math.min(100, startPos));
-    endPos = Math.max(0, Math.min(100, endPos));
-    const width = Math.max(2, endPos - startPos);
-
-    html += `
-      <div class="gantt-row">
-        <div class="gantt-project-name" title="${escapeHTML(project.name)}">${escapeHTML(project.name)}</div>
-        <div class="gantt-track">
-          <div class="gantt-bar" 
-               onclick="openProjectDetail('${project.id}')"
-               style="left: ${startPos}%; width: ${width}%; background: ${pillar.color};"
-               title="${project.name} (${project.createdAt} -> ${project.dueDate || "?"})">
-            ${width > 10 ? escapeHTML(project.name) : ""}
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
+  const contextProjects = state.projects.filter(isInDeepWorkContext);
+  container.innerHTML = contextProjects.length
+    ? contextProjects.map(projectCard).join("")
+    : `<div class="empty-state">Aucun projet actif.</div>`;
 }
 
 function projectCard(project) {
   const pillar = pillarById(project.pillar);
   const progress = projectProgress(project.id);
-  const taskCount = state.tasks.filter((task) => task.projectId === project.id).length;
-  const nextAction = state.tasks.find(
-    (task) => task.projectId === project.id && task.status !== "done",
-  );
-
+  
   return `
-    <article class="project-card" onclick="openProjectDetail('${project.id}')" style="cursor: pointer;">
-      <div class="project-top">
-        <div>
-          <h3>${escapeHTML(project.name)}</h3>
-          <div class="meta-row">
-            <span class="pill" style="--pillar-color: ${pillar.color}">
-              <span class="pillar-dot"></span>${pillar.label}
-            </span>
-            <span>${taskCount} tâches</span>
-          </div>
-        </div>
-        ${formatDeadline(project.dueDate)}
+    <div class="project-card" data-action="open-project" data-id="${project.id}">
+      <div class="project-card-header">
+        <span class="pillar-dot" style="background: ${pillar.color}"></span>
+        <h3>${escapeHTML(project.name)}</h3>
       </div>
-      <p class="muted" style="font-size: 13px; margin: 12px 0;">${escapeHTML(project.doneDefinition || "Définition du \"done\" à clarifier.")}</p>
-      <div class="meta-row" style="margin-top: 8px">
-        <span class="muted">Prochaine action :</span>
-        <strong style="font-size: 13px;">${nextAction ? escapeHTML(nextAction.title) : "À définir"}</strong>
+      <div class="progress-container">
+        <div class="progress-bar" style="width: ${progress}%"></div>
       </div>
-    </article>
+      <div class="project-card-footer">
+        <span>${progress}% complété</span>
+        ${project.dueDate ? `<span class="due-date">Échéance: ${project.dueDate}</span>` : ""}
+      </div>
+    </div>
   `;
 }
 
 function renderReview() {
-  const inboxTasks = state.tasks.filter(t => t.status === "inbox");
-  const projectsWithoutAction = state.projects.filter(p => {
-    const hasNextAction = state.tasks.some(t => t.projectId === p.id && t.status !== "done");
-    return !hasNextAction && p.status === "active";
-  });
-  const doneThisWeek = state.tasks.filter(t => t.status === "done").length;
-
-  document.querySelector("#reviewInboxStats").innerHTML = inboxTasks.length > 0 
-    ? `Il te reste <strong>${inboxTasks.length}</strong> élément(s) à trier dans ton Inbox.`
-    : `Ton Inbox est <strong>propre</strong>. Bien joué !`;
-
-  document.querySelector("#reviewProjectStats").innerHTML = projectsWithoutAction.length > 0
-    ? `Attention, <strong>${projectsWithoutAction.length}</strong> projet(s) n'ont pas de prochaine action définie.`
-    : `Tous tes projets sont <strong>actifs</strong> et clairs.`;
-
-  document.querySelector("#reviewWeekStats").innerHTML = `Tu as accompli <strong>${doneThisWeek}</strong> tâche(s) cette semaine. Prêt pour la suivante ?`;
-}
-
-async function archiveFinishedTasks() {
-  const doneTasks = state.tasks.filter(t => t.status === "done");
-  const doneCount = doneTasks.length;
-  if (doneCount === 0) {
-    showToast("Aucune tâche à archiver", "info");
-    return;
-  }
-
-  if (confirm(`Voulez-vous archiver (supprimer) les ${doneCount} tâches terminées ?`)) {
-    const doneIds = doneTasks.map(t => t.id);
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .in('id', doneIds);
-
-    if (error) {
-      showToast("Erreur lors de l'archivage", "error");
-      return;
-    }
-
-    state.tasks = state.tasks.filter(t => t.status !== "done");
-    persistAndRender();
-    showToast(`${doneCount} tâches archivées`, "success");
-  }
-}
-
-function switchView(viewName) {
-  currentView = viewName;
+  const inboxCount = state.tasks.filter(t => t.status === "inbox").length;
+  const projectCount = state.projects.length;
+  const doneCount = state.tasks.filter(t => t.status === "done").length;
   
-  // Mise à jour des boutons d'onglets
-  document.querySelectorAll(".tab-button").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.view === viewName);
-  });
+  const updateText = (id, text) => {
+    const el = document.querySelector(id);
+    if (el) el.textContent = text;
+  };
 
-  // Mise à jour des sections de vue
-  document.querySelectorAll(".view").forEach((v) => {
-    v.classList.toggle("active", v.id === `${viewName}View`);
-  });
-
-  render();
+  updateText("#reviewInboxStats", `${inboxCount} tâches à trier`);
+  updateText("#reviewProjectStats", `${projectCount} projets actifs`);
+  updateText("#reviewWeekStats", `${doneCount} tâches terminées`);
 }
 
-function render() {
-  renderContextAccent();
-  renderSelectOptions();
-  renderMetrics();
-
-  const view = currentView;
-  if (view === "cockpit") {
-    renderTaskSections();
-  } else if (view === "map") {
-    renderProjects();
-  } else if (view === "review") {
-    renderReview();
-  }
-}
-
-function renderContextAccent() {
-  const contextPillar = activeContextPillar();
-  document.body.dataset.context = contextPillar?.id || "all";
-  document.body.style.setProperty("--context-accent", contextPillar?.color || "#ededed");
-  document.body.style.setProperty("--context-accent-soft", contextPillar ? `${contextPillar.color}24` : "rgba(255, 255, 255, 0.08)");
-  document.body.style.setProperty("--context-accent-border", contextPillar ? `${contextPillar.color}88` : "#2a2a2a");
-}
-
+// Dialogs
 function openTaskDialog(taskId = "") {
-  const task = taskId ? state.tasks.find((item) => item.id === taskId) : null;
+  const task = taskId ? state.tasks.find(t => t.id === taskId) : null;
   const dialog = document.querySelector("#taskDialog");
+  if (!dialog) return;
 
   document.querySelector("#editingTaskId").value = task?.id || "";
-  document.querySelector("#taskDialogKicker").textContent = task ? "Edition" : "Capture rapide";
-  document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tache" : "Ajouter une tache";
-  document.querySelector("#taskDialogSubmit").textContent = task ? "Enregistrer les changements" : "Ajouter a l'inbox";
+  document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
   document.querySelector("#quickTitle").value = task?.title || "";
   document.querySelector("#quickDescription").value = task?.description || "";
-  document.querySelector("#quickPillar").value =
-    task?.pillar || (state.deepWorkPillar === "all" ? pillars[0].id : state.deepWorkPillar);
+  document.querySelector("#quickPillar").value = task?.pillar || (state.deepWorkPillar === "all" ? pillars[0].id : state.deepWorkPillar);
   document.querySelector("#quickProject").value = task?.projectId || "";
   document.querySelector("#quickStatus").value = task?.status || "inbox";
   document.querySelector("#quickDueDate").value = task?.dueDate || "";
 
   dialog.showModal();
-  document.querySelector("#quickTitle").focus();
 }
 
 function closeTaskDialog() {
-  document.querySelector("#taskDialog").close();
-  document.querySelector("#openTaskDialog").focus();
+  const dialog = document.querySelector("#taskDialog");
+  if (dialog) dialog.close();
 }
 
-function toggleTaskStatus(taskId) {
-  const task = state.tasks.find(t => t.id === taskId);
-  if (!task) return;
-  const nextStatus = task.status === "done" ? "planned" : "done";
-  setTaskStatus(taskId, nextStatus);
-  showToast(nextStatus === "done" ? "Tâche terminée !" : "Tâche réouverte", "success");
+function openProjectDetail(id) {
+  selectedProjectId = id;
+  const project = projectById(id);
+  if (!project) return;
+
+  const dialog = document.querySelector("#projectDetailDialog");
+  if (!dialog) return;
+
+  const pillar = pillarById(project.pillar);
+  document.querySelector("#detailPillar").textContent = pillar.label;
+  document.querySelector("#detailTitle").textContent = project.name;
+  document.querySelector("#detailDoneDefinition").textContent = project.doneDefinition || "";
+  
+  renderProjectTasks(id);
+  dialog.showModal();
+}
+
+function renderProjectTasks(projectId) {
+  const container = document.querySelector("#projectTaskList");
+  if (!container) return;
+
+  const tasks = state.tasks.filter(t => t.projectId === projectId);
+  container.innerHTML = tasks.length ? tasks.map(taskCard).join("") : '<div class="empty-state">Aucune tâche pour ce projet.</div>';
+}
+
+// Utilitaires UI
+function showToast(message, type = "info") {
+  const container = document.querySelector("#toastContainer");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add("fade-out");
+    setTimeout(() => toast.remove(), 500);
+  }, 3000);
+}
+
+function switchView(viewName) {
+  currentView = viewName;
+  document.querySelectorAll(".tab-button").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.view === viewName);
+  });
+  document.querySelectorAll(".view").forEach(view => {
+    view.classList.toggle("active", view.id === `${viewName}View`);
+  });
+  render();
+}
+
+function escapeHTML(str) {
+  if (!str) return "";
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Événements
+function initEventListeners() {
+  const safeListen = (selector, event, handler) => {
+    const el = document.querySelector(selector);
+    if (el) el.addEventListener(event, handler);
+  };
+
+  safeListen("#quickAddForm", "submit", async (e) => {
+    e.preventDefault();
+    const id = document.querySelector("#editingTaskId").value;
+    const title = document.querySelector("#quickTitle").value;
+    const pillar = document.querySelector("#quickPillar").value;
+    const projectId = document.querySelector("#quickProject").value;
+    const status = document.querySelector("#quickStatus").value;
+    const description = document.querySelector("#quickDescription").value;
+    const dueDate = document.querySelector("#quickDueDate").value;
+
+    if (id) {
+      await updateTask(id, { title, pillar, projectId, status, description, dueDate });
+    } else {
+      await addTask(title, pillar, projectId);
+    }
+    closeTaskDialog();
+  });
+
+  safeListen("#openTaskDialog", "click", () => openTaskDialog());
+  safeListen("#closeTaskDialog", "click", () => closeTaskDialog());
+
+  safeListen("#contextSwitch", "change", (e) => {
+    state.deepWorkPillar = e.target.value;
+    persistAndRender();
+  });
+
+  safeListen("#pillarFilter", "change", (e) => {
+    state.filters.pillar = e.target.value;
+    render();
+  });
+
+  safeListen("#statusFilter", "change", (e) => {
+    state.filters.status = e.target.value;
+    render();
+  });
+
+  safeListen("#showArchivesToggle", "change", (e) => {
+    state.showArchives = e.target.checked;
+    render();
+  });
+
+  safeListen("#addProjectButton", "click", () => {
+    document.querySelector("#projectDialog").showModal();
+  });
+
+  safeListen("#projectForm", "submit", async (e) => {
+    if (e.submitter?.value === "cancel") return;
+    e.preventDefault();
+    const name = document.querySelector("#projectNameInput").value;
+    const pillar = document.querySelector("#projectPillarInput").value;
+    const doneDefinition = document.querySelector("#projectDoneInput").value;
+    const startDate = document.querySelector("#projectStartInput").value;
+    const dueDate = document.querySelector("#projectDueInput").value;
+    await addProject(name, pillar, doneDefinition, startDate, dueDate);
+    document.querySelector("#projectDialog").close();
+  });
+
+  safeListen("#closeProjectDetail", "click", () => {
+    document.querySelector("#projectDetailDialog").close();
+  });
+
+  safeListen("#archiveWeekButton", "click", () => archiveDoneTasks());
+  safeListen("#resetFocusButton", "click", () => resetDailyFocus());
+
+  document.querySelectorAll(".tab-button").forEach(btn => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  });
+
+  document.body.addEventListener("click", (e) => {
+    const actionBtn = e.target.closest("[data-action]");
+    if (!actionBtn) return;
+    const { action, id } = actionBtn.dataset;
+    if (action === "toggle-status") {
+      const t = state.tasks.find(tk => tk.id === id);
+      if (t) setTaskStatus(id, t.status === "done" ? "planned" : "done");
+    }
+    if (action === "edit-task") openTaskDialog(id);
+    if (action === "delete") deleteTask(id);
+    if (action === "focus") setTaskStatus(id, "focus");
+    if (action === "open-project") openProjectDetail(id);
+  });
+
+  document.querySelectorAll("dialog").forEach(dialog => {
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  });
 }
 
 function persistAndRender() {
   saveState();
   render();
+}
+
+async function init() {
+  console.log("Initialisation de l'application...");
+  initEventListeners();
+  render(); // Rendu initial (local)
   
-  if (selectedProjectId) {
-    renderProjectTasks(selectedProjectId);
-    const progress = projectProgress(selectedProjectId);
-    document.querySelector("#detailProgressBar").style.width = `${progress}%`;
-    document.querySelector("#detailProgressPercent").textContent = `${progress}%`;
-  }
+  state = await loadState(); // Chargement cloud
+  render(); // Rendu final
 }
 
-function escapeHTML(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function initEventListeners() {
-  document.querySelector("#quickAddForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const editingTaskId = document.querySelector("#editingTaskId").value;
-    const titleInput = document.querySelector("#quickTitle");
-    const title = titleInput.value.trim();
-    
-    if (!title) {
-      titleInput.classList.add("shake");
-      titleInput.focus();
-      setTimeout(() => titleInput.classList.remove("shake"), 400);
-      showToast("Le titre est requis", "error");
-      return;
-    }
-
-    const projectId = document.querySelector("#quickProject").value;
-    const project = projectById(projectId);
-    const pillar = project?.pillar || document.querySelector("#quickPillar").value;
-
-    if (editingTaskId) {
-      updateTask(editingTaskId, {
-        title,
-        description: document.querySelector("#quickDescription").value.trim(),
-        pillar,
-        projectId,
-        status: document.querySelector("#quickStatus").value,
-        dueDate: document.querySelector("#quickDueDate").value,
-      });
-      showToast("Tâche mise à jour", "success");
-    } else {
-      addTask(title, pillar, projectId);
-    }
-
-    document.querySelector("#quickAddForm").reset();
-    closeTaskDialog();
-  });
-
-  document.querySelector("#quickProject").addEventListener("change", (event) => {
-    const project = projectById(event.target.value);
-    if (project) document.querySelector("#quickPillar").value = project.pillar;
-  });
-
-  document.querySelector("#quickPillar").addEventListener("change", () => {
-    document.querySelector("#quickProject").value = "";
-  });
-
-  document.querySelector("#openTaskDialog").addEventListener("click", () => {
-    openTaskDialog();
-  });
-
-  document.querySelector("#closeTaskDialog").addEventListener("click", () => {
-    closeTaskDialog();
-  });
-
-  document.querySelector("#contextSwitch").addEventListener("change", (event) => {
-    state.deepWorkPillar = event.target.value;
-    state.filters.pillar = "all";
-    persistAndRender();
-  });
-
-  document.querySelector("#pillarFilter").addEventListener("change", (event) => {
-    state.filters.pillar = event.target.value;
-    persistAndRender();
-  });
-
-  document.querySelector("#statusFilter").addEventListener("change", (event) => {
-    state.filters.status = event.target.value;
-    persistAndRender();
-  });
-
-  document.querySelector("#resetFocusButton").addEventListener("click", () => {
-    state.tasks = state.tasks.map((task) =>
-      task.status === "focus" ? { ...task, status: "planned" } : task,
-    );
-    persistAndRender();
-  });
-
-  document.querySelector("#addProjectButton").addEventListener("click", () => {
-    document.querySelector("#editingProjectId").value = "";
-    document.querySelector("#projectForm").reset();
-    document.querySelector("#projectStartInput").value = todayISO();
-    document.querySelector("#projectDialog h2").textContent = "Nouveau projet";
-    document.querySelector("#projectDialog .button-primary").textContent = "Créer";
-    document.querySelector("#projectDialog").showModal();
-  });
-
-  document.querySelector("#editProjectButton").addEventListener("click", () => {
-    if (selectedProjectId) openProjectEditor(selectedProjectId);
-  });
-
-  document.querySelector("#projectForm").addEventListener("submit", (event) => {
-    if (event.submitter?.value === "cancel") return;
-    event.preventDefault();
-    saveProject({
-      id: document.querySelector("#editingProjectId").value,
-      name: document.querySelector("#projectNameInput").value,
-      pillar: document.querySelector("#projectPillarInput").value,
-      doneDefinition: document.querySelector("#projectDoneInput").value,
-      startDate: document.querySelector("#projectStartInput").value,
-      dueDate: document.querySelector("#projectDueInput").value,
-    });
-    document.querySelector("#projectDialog").close();
-  });
-
-  document.querySelector("#exportButton").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `multi-focus-engine-${todayISO()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.querySelector("#importInput").addEventListener("change", async (event) => {
-    const [file] = event.target.files;
-    if (!file) return;
-    try {
-      const text = await file.text();
-      state = { ...structuredClone(seedState), ...JSON.parse(text) };
-      persistAndRender();
-      showToast("Importation réussie", "success");
-    } catch {
-      showToast("Erreur lors de l'importation", "error");
-    }
-  });
-
-  document.querySelectorAll(".tab-button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      switchView(btn.dataset.view);
-    });
-  });
-
-  document.querySelector("#closeProjectDetail").onclick = () => {
-    document.querySelector("#projectDetailDialog").close();
-    selectedProjectId = null;
-  };
-
-  document.querySelector("#addTaskToProject").onclick = () => {
-    openTaskDialog();
-    document.querySelector("#quickProject").value = selectedProjectId;
-  };
-
-  // Fermer les pop-ups en cliquant à l'extérieur
-  document.querySelectorAll("dialog").forEach((dialog) => {
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        dialog.close();
-        if (dialog.id === "projectDetailDialog") selectedProjectId = null;
-      }
-    });
-  });
-
-  document.querySelector("#showArchivesToggle").addEventListener("change", (event) => {
-    state.showArchives = event.target.checked;
-    persistAndRender();
-  });
-
-  document.querySelector("#archiveWeekButton").addEventListener("click", () => {
-    archiveFinishedTasks();
-  });
-
-  // Gestion globale des clics (Actions de tâches et ouverture de détails)
-  document.body.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-action]");
-    if (button) {
-      const { action, id } = button.dataset;
-      event.stopPropagation(); // Empêcher l'ouverture du détail du projet si clic sur action de tâche
-      if (["focus", "planned", "done"].includes(action)) setTaskStatus(id, action);
-      if (action === "delete") deleteTask(id);
-      return;
-    }
-  });
-
-  // Raccourcis clavier
-  document.addEventListener("keydown", (event) => {
-    const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
-    if (isTyping) return;
-
-    if (event.key.toLowerCase() === "n") {
-      openTaskDialog();
-    }
-    // Raccourcis piliers
-    const pillarKeys = { "1": "engineer", "2": "design", "3": "commerce", "0": "all" };
-    if (pillarKeys[event.key]) {
-      state.deepWorkPillar = pillarKeys[event.key];
-      persistAndRender();
-    }
-  });
-}
-
-// Initialisation via la fonction init() asynchrone définie plus haut
+init();
