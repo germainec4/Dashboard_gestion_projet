@@ -1,3 +1,9 @@
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const STORAGE_KEY = "multi-focus-engine:v1";
 
 const pillars = [
@@ -53,95 +59,55 @@ const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(16).sl
 const seedState = {
   deepWorkPillar: "all",
   filters: { pillar: "all", status: "all" },
-  projects: [
-    {
-      id: "project_field_ops",
-      name: "Essais terrain Q2",
-      pillar: "engineer",
-      doneDefinition: "La campagne est terminée quand les essais critiques sont documentés, les anomalies triées et le rapport partagé.",
-      status: "active",
-      createdAt: todayISO(),
-      dueDate: addDaysISO(28),
-    },
-    {
-      id: "project_portfolio",
-      name: "Portfolio freelance",
-      pillar: "design",
-      doneDefinition: "Le portfolio est publié avec 3 cas clients, une offre claire et un formulaire testé.",
-      status: "active",
-      createdAt: todayISO(),
-      dueDate: addDaysISO(14),
-    },
-    {
-      id: "project_store",
-      name: "Boutique première vente",
-      pillar: "commerce",
-      doneDefinition: "La boutique est vendable quand paiement, fiche produit, livraison et e-mails post-achat sont testés.",
-      status: "active",
-      createdAt: todayISO(),
-      dueDate: addDaysISO(21),
-    },
-  ],
-  tasks: [
-    {
-      id: "task_1",
-      title: "Lister les anomalies ouvertes avant la prochaine sortie terrain",
-      description: "Vérifier les points ouverts et isoler ce qui bloque la prochaine campagne.",
-      pillar: "engineer",
-      projectId: "project_field_ops",
-      status: "focus",
-      effort: "30 min",
-      createdAt: todayISO(),
-      dueDate: todayISO(),
-    },
-    {
-      id: "task_2",
-      title: "Rédiger la structure du cas client principal",
-      description: "",
-      pillar: "design",
-      projectId: "project_portfolio",
-      status: "planned",
-      effort: "Deep Work",
-      createdAt: todayISO(),
-      dueDate: addDaysISO(3),
-    },
-    {
-      id: "task_3",
-      title: "Tester le paiement de bout en bout",
-      description: "",
-      pillar: "commerce",
-      projectId: "project_store",
-      status: "planned",
-      effort: "30 min",
-      createdAt: todayISO(),
-      dueDate: addDaysISO(5),
-    },
-    {
-      id: "task_4",
-      title: "Idée : ajouter une page FAQ livraison",
-      description: "",
-      pillar: "commerce",
-      projectId: "project_store",
-      status: "inbox",
-      effort: "5 min",
-      createdAt: todayISO(),
-      dueDate: "",
-    },
-  ],
+  projects: [],
+  tasks: [],
   showArchives: false,
 };
 
-let state = loadState();
+let state = structuredClone(seedState);
 let selectedProjectId = null;
+let currentView = "cockpit";
 
-function loadState() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return structuredClone(seedState);
-  try {
-    return { ...structuredClone(seedState), ...JSON.parse(stored) };
-  } catch {
+async function loadState() {
+  const { data: projects, error: pError } = await supabase.from('projects').select('*');
+  const { data: tasks, error: tError } = await supabase.from('tasks').select('*');
+  
+  if (pError || tError) {
+    showToast("Erreur de connexion à Supabase", "error");
     return structuredClone(seedState);
   }
+
+  const mappedProjects = projects.map(p => ({
+    id: p.id,
+    name: p.name,
+    pillar: p.pillar,
+    doneDefinition: p.done_definition,
+    status: p.status,
+    createdAt: p.created_at,
+    startDate: p.start_date,
+    dueDate: p.due_date
+  }));
+
+  const mappedTasks = tasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    pillar: t.pillar,
+    projectId: t.project_id,
+    status: t.status,
+    effort: t.effort,
+    createdAt: t.created_at,
+    dueDate: t.due_date
+  }));
+
+  const localSettings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  return {
+    ...seedState,
+    ...localSettings,
+    projects: mappedProjects,
+    tasks: mappedTasks,
+  };
 }
 
 function openProjectDetail(projectId) {
@@ -175,12 +141,181 @@ function renderProjectTasks(projectId) {
   container.innerHTML = projectTasks.map(taskCard).join("");
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+async function saveState() {
+  // On ne garde que les réglages d'interface dans le localStorage
+  const settings = {
+    deepWorkPillar: state.deepWorkPillar,
+    filters: state.filters,
+    showArchives: state.showArchives
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+async function persistAndRender() {
+  await saveState();
+  render();
+  
+  if (selectedProjectId) {
+    renderProjectTasks(selectedProjectId);
+    const progress = projectProgress(selectedProjectId);
+    const progressBar = document.querySelector("#detailProgressBar");
+    const progressPercent = document.querySelector("#detailProgressPercent");
+    if (progressBar) progressBar.style.width = `${progress}%`;
+    if (progressPercent) progressPercent.textContent = `${progress}%`;
+  }
+}
+
+async function setTaskStatus(taskId, nextStatus) {
+  if (nextStatus === "focus" && !canFocus(taskId)) return;
+  
+  const { error } = await supabase
+    .from('tasks')
+    .update({ status: nextStatus })
+    .eq('id', taskId);
+
+  if (error) {
+    showToast("Erreur lors de la mise à jour", "error");
+    return;
+  }
+
+  state.tasks = state.tasks.map((task) =>
+    task.id === taskId ? { ...task, status: nextStatus } : task,
+  );
+  persistAndRender();
+}
+
+async function deleteTask(taskId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  
+  if (confirm(`Supprimer la tâche "${task.title}" ?`)) {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) {
+      showToast("Erreur lors de la suppression", "error");
+      return;
+    }
+
+    state.tasks = state.tasks.filter((task) => task.id !== taskId);
+    showToast("Tâche supprimée", "info");
+    persistAndRender();
+  }
+}
+
+async function addTask(title, pillar, projectId) {
+  const newTask = {
+    id: uid("task"),
+    title,
+    description: document.querySelector("#quickDescription").value.trim(),
+    pillar,
+    project_id: projectId || null,
+    status: document.querySelector("#quickStatus").value || "inbox",
+    effort: "30 min",
+    created_at: todayISO(),
+    due_date: document.querySelector("#quickDueDate").value || null,
+  };
+
+  const { error } = await supabase.from('tasks').insert([newTask]);
+
+  if (error) {
+    showToast("Erreur lors de l'ajout", "error");
+    console.error(error);
+    return;
+  }
+
+  // Mapper pour le state local
+  state.tasks.unshift({
+    ...newTask,
+    projectId: newTask.project_id,
+    dueDate: newTask.due_date,
+    createdAt: newTask.created_at
+  });
+  
+  showToast("Tâche ajoutée", "success");
+  persistAndRender();
+}
+
+async function updateTask(taskId, updates) {
+  const dbUpdates = {
+    title: updates.title,
+    description: updates.description,
+    pillar: updates.pillar,
+    project_id: updates.projectId || null,
+    status: updates.status,
+    due_date: updates.dueDate || null
+  };
+
+  const { error } = await supabase
+    .from('tasks')
+    .update(dbUpdates)
+    .eq('id', taskId);
+
+  if (error) {
+    showToast("Erreur lors de la mise à jour", "error");
+    return;
+  }
+
+  state.tasks = state.tasks.map((task) =>
+    task.id === taskId ? { ...task, ...updates } : task,
+  );
+  persistAndRender();
+}
+
+async function saveProject(data) {
+  const { id, name, pillar, doneDefinition, startDate, dueDate } = data;
+  
+  const dbProject = {
+    id: id || uid("project"),
+    name,
+    pillar,
+    done_definition: doneDefinition,
+    start_date: startDate,
+    due_date: dueDate,
+    status: "active",
+    created_at: todayISO()
+  };
+
+  if (id) {
+    const { error } = await supabase
+      .from('projects')
+      .update(dbProject)
+      .eq('id', id);
+
+    if (error) {
+      showToast("Erreur lors de la mise à jour du projet", "error");
+      return;
+    }
+
+    state.projects = state.projects.map(p => p.id === id ? { ...p, ...data } : p);
+    showToast("Projet mis à jour", "success");
+  } else {
+    const { error } = await supabase.from('projects').insert([dbProject]);
+
+    if (error) {
+      showToast("Erreur lors de la création du projet", "error");
+      return;
+    }
+
+    state.projects.push({
+      ...dbProject,
+      doneDefinition: dbProject.done_definition,
+      startDate: dbProject.start_date,
+      dueDate: dbProject.due_date,
+      createdAt: dbProject.created_at
+    });
+    showToast("Projet créé", "success");
+  }
+  
+  persistAndRender();
+  if (id && selectedProjectId === id) openProjectDetail(id);
 }
 
 function showToast(message, type = "info") {
   const container = document.querySelector("#toastContainer");
+  if (!container) return;
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
@@ -229,75 +364,13 @@ function canFocus(taskId) {
   return task?.status === "focus" || focusTasks.length < 3;
 }
 
-function setTaskStatus(taskId, nextStatus) {
-  if (nextStatus === "focus" && !canFocus(taskId)) return;
-  state.tasks = state.tasks.map((task) =>
-    task.id === taskId ? { ...task, status: nextStatus } : task,
-  );
-  persistAndRender();
+async function init() {
+  state = await loadState();
+  initEventListeners();
+  render();
 }
 
-function deleteTask(taskId) {
-  const task = state.tasks.find(t => t.id === taskId);
-  if (!task) return;
-  
-  if (confirm(`Supprimer la tache "${task.title}" ?`)) {
-    state.tasks = state.tasks.filter((task) => task.id !== taskId);
-    showToast("Tache supprimee", "info");
-    persistAndRender();
-  }
-}
-
-function addTask(title, pillar, projectId) {
-  state.tasks.unshift({
-    id: uid("task"),
-    title,
-    description: document.querySelector("#quickDescription").value.trim(),
-    pillar,
-    projectId,
-    status: document.querySelector("#quickStatus").value || "inbox",
-    effort: "30 min",
-    createdAt: todayISO(),
-    dueDate: document.querySelector("#quickDueDate").value,
-  });
-  showToast("Tache ajoutee", "success");
-  persistAndRender();
-}
-
-function updateTask(taskId, updates) {
-  state.tasks = state.tasks.map((task) =>
-    task.id === taskId ? { ...task, ...updates } : task,
-  );
-  persistAndRender();
-}
-function saveProject(data) {
-  const { id, name, pillar, doneDefinition, startDate, dueDate } = data;
-  if (id) {
-    const project = state.projects.find((p) => p.id === id);
-    if (project) {
-      project.name = name;
-      project.pillar = pillar;
-      project.doneDefinition = doneDefinition;
-      project.startDate = startDate;
-      project.dueDate = dueDate;
-    }
-    showToast("Projet mis à jour", "success");
-  } else {
-    state.projects.push({
-      id: uid("project"),
-      name,
-      pillar,
-      doneDefinition,
-      startDate,
-      dueDate,
-      status: "active",
-      createdAt: todayISO(),
-    });
-    showToast("Projet créé", "success");
-  }
-  persistAndRender();
-  if (id && selectedProjectId === id) openProjectDetail(id);
-}
+init();
 
 function openProjectEditor(projectId) {
   const project = projectById(projectId);
@@ -730,14 +803,26 @@ function renderReview() {
   document.querySelector("#reviewWeekStats").innerHTML = `Tu as accompli <strong>${doneThisWeek}</strong> tâche(s) cette semaine. Prêt pour la suivante ?`;
 }
 
-function archiveFinishedTasks() {
-  const doneCount = state.tasks.filter(t => t.status === "done").length;
+async function archiveFinishedTasks() {
+  const doneTasks = state.tasks.filter(t => t.status === "done");
+  const doneCount = doneTasks.length;
   if (doneCount === 0) {
     showToast("Aucune tâche à archiver", "info");
     return;
   }
 
   if (confirm(`Voulez-vous archiver (supprimer) les ${doneCount} tâches terminées ?`)) {
+    const doneIds = doneTasks.map(t => t.id);
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', doneIds);
+
+    if (error) {
+      showToast("Erreur lors de l'archivage", "error");
+      return;
+    }
+
     state.tasks = state.tasks.filter(t => t.status !== "done");
     persistAndRender();
     showToast(`${doneCount} tâches archivées`, "success");
@@ -1028,6 +1113,4 @@ function initEventListeners() {
   });
 }
 
-// Initialisation
-initEventListeners();
-render();
+// Initialisation via la fonction init() asynchrone définie plus haut
