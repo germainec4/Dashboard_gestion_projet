@@ -642,6 +642,20 @@ function initEventListeners() {
     }
   });
 
+  safeListen("#editProjectButton", "click", () => {
+    const project = projectById(selectedProjectId);
+    if (!project) return;
+    
+    document.querySelector("#editingProjectId").value = project.id;
+    document.querySelector("#projectNameInput").value = project.name;
+    document.querySelector("#projectPillarInput").value = project.pillar;
+    document.querySelector("#projectDoneInput").value = project.doneDefinition || "";
+    document.querySelector("#projectStartInput").value = project.startDate || "";
+    document.querySelector("#projectDueInput").value = project.dueDate || "";
+    
+    document.querySelector("#projectDialog").showModal();
+  });
+
   safeListen("#archiveWeekButton", "click", () => { 
     if (confirm("Archiver les tâches terminées ?")) {
       state.tasks = state.tasks.filter(t => t.status !== "done");
