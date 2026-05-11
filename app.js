@@ -4,6 +4,8 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let supabase = null;
+let userSession = null;
+
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -14,6 +16,39 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 } else {
   console.warn("Variables Supabase manquantes dans l'environnement");
 }
+
+// --- AUTH LOGIC ---
+async function initAuth() {
+  if (!supabase) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  handleAuthStateChange(session);
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    handleAuthStateChange(session);
+  });
+}
+
+function handleAuthStateChange(session) {
+  userSession = session;
+  const overlay = document.querySelector("#authOverlay");
+  
+  if (session) {
+    overlay.classList.add("hidden");
+    console.log("Utilisateur connecté:", session.user.email);
+    refreshData();
+  } else {
+    overlay.classList.remove("hidden");
+    state = structuredClone(seedState);
+    render();
+  }
+}
+
+async function refreshData() {
+  state = await loadState();
+  render();
+}
+
 
 const STORAGE_KEY = "multi-focus-engine:v1";
 
@@ -622,6 +657,54 @@ function initEventListeners() {
   });
 
   document.querySelectorAll("dialog").forEach(d => d.onclick = (e) => { if (e.target === d) d.close(); });
+
+  // Auth form handlers
+  let authMode = "login";
+  safeListen("#toggleAuthMode", "click", (e) => {
+    e.preventDefault();
+    authMode = authMode === "login" ? "signup" : "login";
+    document.querySelector("#authSubmit").textContent = authMode === "login" ? "Se connecter" : "S'inscrire";
+    document.querySelector("#toggleAuthMode").textContent = authMode === "login" ? "S'inscrire" : "Se connecter";
+    document.querySelector(".auth-card h2").textContent = authMode === "login" ? "Connexion au Dashboard" : "Création de compte";
+  });
+
+  safeListen("#authForm", "submit", async (e) => {
+    e.preventDefault();
+    const email = document.querySelector("#authEmail").value;
+    const password = document.querySelector("#authPassword").value;
+    const errorEl = document.querySelector("#authError");
+    const submitBtn = document.querySelector("#authSubmit");
+
+    errorEl.classList.add("hidden");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Chargement...";
+
+    try {
+      let result;
+      if (authMode === "login") {
+        result = await supabase.auth.signInWithPassword({ email, password });
+      } else {
+        result = await supabase.auth.signUp({ email, password });
+      }
+
+      if (result.error) {
+        errorEl.textContent = result.error.message;
+        errorEl.classList.remove("hidden");
+      }
+    } catch (err) {
+      errorEl.textContent = "Une erreur est survenue.";
+      errorEl.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = authMode === "login" ? "Se connecter" : "S'inscrire";
+    }
+  });
+
+  safeListen("#logoutButton", "click", async () => {
+    if (confirm("Se déconnecter ?")) {
+      await supabase.auth.signOut();
+    }
+  });
 }
 
 function persistAndRender() { saveState(); render(); }
@@ -629,8 +712,12 @@ function persistAndRender() { saveState(); render(); }
 async function init() {
   initEventListeners();
   render(); // Instant local
-  state = await loadState();
-  render(); // Final sync
+  if (supabase) {
+    await initAuth();
+  } else {
+    state = await loadState();
+    render();
+  }
 }
 
 init();

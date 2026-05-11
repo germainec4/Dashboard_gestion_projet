@@ -31,6 +31,7 @@
             <select id="contextSwitch" class="control-select" aria-label="Mode deep work">
               <option value="all">Tous les piliers</option>
             </select>
+            <button id="logoutButton" class="button button-secondary" style="margin-left: 12px; padding: 6px 12px; font-size: 12px;">Déconnexion</button>
           </div>
         </nav>
 
@@ -297,6 +298,31 @@
         <div id="projectTaskList" class="task-list-detail"></div>
       </div>
     </dialog>
+
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <div class="auth-header">
+          <p class="eyebrow">Accès sécurisé</p>
+          <h2>Connexion au Dashboard</h2>
+          <p class="panel-copy">Veuillez vous connecter pour accéder à vos tâches personnelles.</p>
+        </div>
+        <form id="authForm" class="auth-form">
+          <label>
+            Email
+            <input id="authEmail" type="email" required placeholder="votre@email.com" autocomplete="email" />
+          </label>
+          <label>
+            Mot de passe
+            <input id="authPassword" type="password" required placeholder="••••••••" autocomplete="current-password" />
+          </label>
+          <div id="authError" class="auth-error hidden"></div>
+          <button type="submit" id="authSubmit" class="button button-primary">Se connecter</button>
+          <p class="auth-toggle">
+            Pas encore de compte ? <a href="#" id="toggleAuthMode">S'inscrire</a>
+          </p>
+        </form>
+      </div>
+    </div>
 
     <div id="toastContainer" class="toast-container"></div>
     <script type="module" src="app.js"></script>
