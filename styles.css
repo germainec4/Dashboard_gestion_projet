@@ -1129,10 +1129,19 @@ textarea:focus {
   flex-direction: column;
   gap: 20px;
   overflow-x: hidden;
+  position: relative;
 }
 
 .project-detail-dialog .dialog-content {
   width: 800px;
+}
+
+.dialog-top-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
 }
 
 .topbar {

@@ -633,6 +633,15 @@ function initEventListeners() {
   });
 
   safeListen("#closeProjectDetail", "click", () => document.querySelector("#projectDetailDialog").close());
+  safeListen("#addTaskToProject", "click", () => {
+    document.querySelector("#projectDetailDialog").close();
+    openTaskDialog();
+    const quickProject = document.querySelector("#quickProject");
+    if (quickProject && selectedProjectId) {
+      quickProject.value = selectedProjectId;
+    }
+  });
+
   safeListen("#archiveWeekButton", "click", () => { 
     if (confirm("Archiver les tâches terminées ?")) {
       state.tasks = state.tasks.filter(t => t.status !== "done");
