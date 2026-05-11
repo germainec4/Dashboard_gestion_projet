@@ -7,9 +7,12 @@ let supabase = null;
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase Client Initialisé");
   } catch (e) {
     console.error("Erreur lors de l'initialisation de Supabase:", e);
   }
+} else {
+  console.warn("Variables Supabase manquantes dans l'environnement");
 }
 
 const STORAGE_KEY = "multi-focus-engine:v1";
@@ -83,9 +86,11 @@ async function loadState() {
     ]);
     
     if (pRes.error || tRes.error) {
-      console.error("Erreur Supabase:", pRes.error || tRes.error);
+      console.error("Erreur de récupération Supabase:", pRes.error || tRes.error);
       return { ...seedState, ...localData };
     }
+
+    console.log("Données Cloud chargées avec succès");
 
     const mappedProjects = pRes.data.map(p => ({
       id: p.id,
@@ -138,7 +143,7 @@ async function addTask(title, pillar, projectId = "") {
     pillar,
     projectId,
     status: document.querySelector("#quickStatus")?.value || "inbox",
-    createdAt: new Date().toISOString(),
+    createdAt: todayISO(),
     dueDate: document.querySelector("#quickDueDate")?.value || null
   };
 
@@ -146,18 +151,23 @@ async function addTask(title, pillar, projectId = "") {
   persistAndRender();
 
   if (supabase) {
-    try {
-      await supabase.from('tasks').insert([{
-        id: newTask.id,
-        title: newTask.title,
-        description: newTask.description,
-        pillar: newTask.pillar,
-        project_id: newTask.projectId || null,
-        status: newTask.status,
-        created_at: newTask.createdAt,
-        due_date: newTask.dueDate
-      }]);
-    } catch (e) { console.error("Erreur synchro insert:", e); }
+    console.log("Tentative d'insertion cloud...");
+    const { error } = await supabase.from('tasks').insert([{
+      id: newTask.id,
+      title: newTask.title,
+      description: newTask.description,
+      pillar: newTask.pillar,
+      project_id: newTask.projectId || null,
+      status: newTask.status,
+      created_at: newTask.createdAt,
+      due_date: newTask.dueDate
+    }]);
+    if (error) {
+      console.error("Erreur d'insertion Supabase:", error);
+      showToast("Erreur de synchronisation Cloud", "error");
+    } else {
+      console.log("Tâche synchronisée avec succès");
+    }
   }
 }
 
@@ -169,18 +179,17 @@ async function updateTask(id, updates) {
   persistAndRender();
 
   if (supabase) {
-    try {
-      const dbUpdates = {
-        title: updates.title,
-        description: updates.description,
-        pillar: updates.pillar,
-        project_id: updates.projectId === undefined ? undefined : (updates.projectId || null),
-        status: updates.status,
-        due_date: updates.dueDate
-      };
-      Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
-      await supabase.from('tasks').update(dbUpdates).eq('id', id);
-    } catch (e) { console.error("Erreur synchro update:", e); }
+    const dbUpdates = {
+      title: updates.title,
+      description: updates.description,
+      pillar: updates.pillar,
+      project_id: updates.projectId === undefined ? undefined : (updates.projectId || null),
+      status: updates.status,
+      due_date: updates.dueDate
+    };
+    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+    const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
+    if (error) console.error("Erreur de mise à jour Supabase:", error);
   }
 }
 
@@ -193,9 +202,8 @@ async function deleteTask(id) {
   persistAndRender();
 
   if (supabase) {
-    try {
-      await supabase.from('tasks').delete().eq('id', id);
-    } catch (e) { console.error("Erreur synchro delete:", e); }
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) console.error("Erreur de suppression Supabase:", error);
   }
 }
 
@@ -226,10 +234,16 @@ async function saveProject(data) {
 
   if (id) {
     state.projects = state.projects.map(p => p.id === id ? { ...p, ...data } : p);
-    if (supabase) await supabase.from('projects').update(dbProject).eq('id', id);
+    if (supabase) {
+      const { error } = await supabase.from('projects').update(dbProject).eq('id', id);
+      if (error) console.error("Erreur de mise à jour projet Supabase:", error);
+    }
   } else {
     state.projects.push({ ...dbProject, doneDefinition, startDate, dueDate, createdAt: dbProject.created_at });
-    if (supabase) await supabase.from('projects').insert([dbProject]);
+    if (supabase) {
+      const { error } = await supabase.from('projects').insert([dbProject]);
+      if (error) console.error("Erreur d'insertion projet Supabase:", error);
+    }
   }
   persistAndRender();
 }
