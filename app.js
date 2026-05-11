@@ -534,7 +534,8 @@ function openTaskDialog(taskId = "") {
   if (!dialog) return;
 
   document.querySelector("#editingTaskId").value = task?.id || "";
-  document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Capture rapide";
+  document.querySelector("#taskDialogKicker").textContent = task ? "Édition" : "Capture rapide";
+  document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
   document.querySelector("#quickTitle").value = task?.title || "";
   document.querySelector("#quickDescription").value = task?.description || "";
   document.querySelector("#quickPillar").value = task?.pillar || (state.deepWorkPillar === "all" ? pillars[0].id : state.deepWorkPillar);
