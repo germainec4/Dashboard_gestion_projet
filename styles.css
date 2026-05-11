@@ -1208,6 +1208,11 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.08);
 }
 
+option {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
 .task-edit-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
