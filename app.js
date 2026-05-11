@@ -330,6 +330,15 @@ function render() {
     }
 
     initDragAndDrop();
+
+    // Mise à jour dynamique du détail du projet si ouvert
+    const projectDetailDialog = document.querySelector("#projectDetailDialog");
+    if (projectDetailDialog && projectDetailDialog.open && selectedProjectId) {
+      renderProjectTasks(selectedProjectId);
+      const progress = projectProgress(selectedProjectId);
+      document.querySelector("#detailProgressBar").style.width = `${progress}%`;
+      document.querySelector("#detailProgressPercent").textContent = `${progress}%`;
+    }
   } catch (e) {
     console.error("Erreur de rendu:", e);
   }
