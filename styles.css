@@ -236,11 +236,14 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   margin-bottom: 20px;
+  text-align: center;
+  width: 100%;
 }
 
 .detail-progress-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   margin-top: 10px;
 }
@@ -262,11 +265,11 @@ textarea:focus {
 
 .detail-actions {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 16px;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .task-list-detail {
@@ -1135,6 +1138,13 @@ textarea:focus {
 
 .project-detail-dialog .dialog-content {
   width: 800px;
+  align-items: center;
+}
+
+.project-detail-dialog .dialog-header,
+.project-detail-dialog .dialog-header > div {
+  text-align: center;
+  width: 100%;
 }
 
 .dialog-top-actions {
