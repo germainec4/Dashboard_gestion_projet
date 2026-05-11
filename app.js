@@ -245,8 +245,8 @@ async function deleteTask(id) {
 async function setTaskStatus(id, status) {
   if (status === "focus") {
     const focusCount = state.tasks.filter(t => t.status === "focus").length;
-    if (focusCount >= 3) {
-      showToast("Limite de 3 priorités atteinte !", "warning");
+    if (focusCount >= 5) {
+      showToast("Limite de 5 priorités atteinte !", "warning");
       return;
     }
   }
@@ -350,11 +350,11 @@ function renderMetrics() {
   const focusTasks = state.tasks.filter(t => t.status === "focus" && isInDeepWorkContext(t));
   const el = document.querySelector("#focusCount");
   if (el) {
-    el.textContent = `${focusTasks.length}/3`;
-    el.classList.toggle("warning", focusTasks.length >= 3);
+    el.textContent = `${focusTasks.length}/5`;
+    el.classList.toggle("warning", focusTasks.length >= 5);
   }
   const fw = document.querySelector("#focusWarning");
-  if (fw) fw.classList.toggle("hidden", focusTasks.length <= 3);
+  if (fw) fw.classList.toggle("hidden", focusTasks.length <= 5);
 }
 
 // Rendu des Tâches (Premium)
@@ -382,7 +382,7 @@ function renderWorkPlan(tasks) {
   if (!container) return;
 
   const body = [
-    workPlanLane({ id: "focus", title: "Priorités du jour", hint: "Max 3. Décision immédiate.", tasks: tasks.filter(t => t.status === "focus"), featured: true }),
+    workPlanLane({ id: "focus", title: "Priorités du jour", hint: "Max 5. Décision immédiate.", tasks: tasks.filter(t => t.status === "focus"), featured: true }),
     ...workPlanGroups.map(group => workPlanLane({ ...group, tasks: tasks.filter(t => t.status === group.id) }))
   ].join("");
 
@@ -434,7 +434,7 @@ function taskCard(task) {
 
 function taskActions(task) {
   const actions = [];
-  const focusDisabled = state.tasks.filter(t => t.status === "focus").length >= 3 && task.status !== "focus";
+  const focusDisabled = state.tasks.filter(t => t.status === "focus").length >= 5 && task.status !== "focus";
 
   if (task.status !== "focus" && task.status !== "done") {
     actions.push(`<button class="action-button" data-action="focus" data-id="${task.id}" ${focusDisabled ? 'disabled' : ''}>${ICONS.focus}<span>Prioriser</span></button>`);
@@ -464,7 +464,9 @@ function renderProjects() {
 
 function projectCard(project) {
   const pillar = pillarById(project.pillar);
-  const progress = projectProgress(project.id);
+  const projectTasks = state.tasks.filter(t => t.projectId === project.id);
+  const doneTasks = projectTasks.filter(t => t.status === "done").length;
+  const totalTasks = projectTasks.length;
   const nextAction = state.tasks.find(t => t.projectId === project.id && t.status !== "done");
 
   return `
@@ -473,7 +475,7 @@ function projectCard(project) {
         <div><h3>${escapeHTML(project.name)}</h3>
           <div class="meta-row">
             <span class="pill" style="--pillar-color: ${pillar.color}"><span class="pillar-dot"></span>${pillar.label}</span>
-            <span>${progress}% complété</span>
+            <span>${doneTasks} / ${totalTasks} tâches complétées</span>
           </div>
         </div>
         ${project.dueDate ? `<span class="deadline-badge">${project.dueDate}</span>` : ''}
@@ -498,9 +500,23 @@ function renderGantt() {
   let endRange = new Date(now.getTime() + 30 * 86400000);
 
   const totalDays = Math.ceil((endRange - startRange) / 86400000);
-  container.style.minWidth = `${totalDays * 30}px`;
+  container.style.minWidth = `${totalDays * 40}px`;
 
-  container.innerHTML = projects.map(p => {
+  // En-tête des mois
+  let headerHTML = '<div class="gantt-header-row"><div class="gantt-project-name"></div><div class="gantt-track" style="position: relative; height: 30px;">';
+  let currentMonth = -1;
+  for (let d = 0; d < totalDays; d++) {
+    const date = new Date(startRange.getTime() + d * 86400000);
+    if (date.getMonth() !== currentMonth) {
+      currentMonth = date.getMonth();
+      const monthName = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      const left = (d / totalDays) * 100;
+      headerHTML += `<span class="gantt-month-label" style="left: ${left}%">${monthName}</span>`;
+    }
+  }
+  headerHTML += '</div></div>';
+
+  const rowsHTML = projects.map(p => {
     const pillar = pillarById(p.pillar);
     const pStart = new Date(p.startDate || p.createdAt);
     const pEnd = p.dueDate ? new Date(p.dueDate) : new Date(pStart.getTime() + 14 * 86400000);
@@ -516,6 +532,8 @@ function renderGantt() {
       </div>
     `;
   }).join("");
+
+  container.innerHTML = headerHTML + rowsHTML;
 }
 
 function renderReview() {
@@ -618,11 +636,17 @@ function initEventListeners() {
   safeListen("#statusFilter", "change", (e) => { state.filters.status = e.target.value; render(); });
   safeListen("#showArchivesToggle", "change", (e) => { state.showArchives = e.target.checked; render(); });
 
-  safeListen("#addProjectButton", "click", () => document.querySelector("#projectDialog").showModal());
+  safeListen("#addProjectButton", "click", () => {
+    document.querySelector("#editingProjectId").value = "";
+    document.querySelector("#projectForm").reset();
+    document.querySelector("#projectDialog h2").textContent = "Nouveau projet";
+    document.querySelector("#projectDialog").showModal();
+  });
   safeListen("#projectForm", "submit", async (e) => {
     if (e.submitter?.value === "cancel") return;
     e.preventDefault();
     await saveProject({
+      id: document.querySelector("#editingProjectId").value,
       name: document.querySelector("#projectNameInput").value,
       pillar: document.querySelector("#projectPillarInput").value,
       doneDefinition: document.querySelector("#projectDoneInput").value,
@@ -653,6 +677,7 @@ function initEventListeners() {
     document.querySelector("#projectStartInput").value = project.startDate || "";
     document.querySelector("#projectDueInput").value = project.dueDate || "";
     
+    document.querySelector("#projectDialog h2").textContent = "Modifier le projet";
     document.querySelector("#projectDialog").showModal();
   });
 
