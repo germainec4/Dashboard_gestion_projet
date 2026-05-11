@@ -283,6 +283,22 @@ async function saveProject(data) {
   persistAndRender();
 }
 
+async function deleteProject(id) {
+  const project = projectById(id);
+  if (!project) return;
+  if (!confirm(`Supprimer le projet "${project.name}" et toutes ses tâches ?`)) return;
+
+  state.projects = state.projects.filter(p => p.id !== id);
+  state.tasks = state.tasks.filter(t => t.projectId !== id);
+  persistAndRender();
+
+  if (supabase) {
+    const { error: tErr } = await supabase.from('tasks').delete().eq('projectId', id);
+    const { error: pErr } = await supabase.from('projects').delete().eq('id', id);
+    if (tErr || pErr) console.error("Erreur de suppression projet Supabase:", tErr || pErr);
+  }
+}
+
 // Helpers
 function pillarById(id) {
   return pillars.find((pillar) => pillar.id === id) || pillars[pillars.length - 1];
@@ -679,6 +695,13 @@ function initEventListeners() {
     
     document.querySelector("#projectDialog h2").textContent = "Modifier le projet";
     document.querySelector("#projectDialog").showModal();
+  });
+
+  safeListen("#deleteProjectButton", "click", async () => {
+    if (selectedProjectId) {
+      await deleteProject(selectedProjectId);
+      document.querySelector("#projectDetailDialog").close();
+    }
   });
 
   safeListen("#archiveWeekButton", "click", () => { 

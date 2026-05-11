@@ -1147,6 +1147,11 @@ textarea:focus {
   width: 100%;
 }
 
+.project-detail-dialog #detailPillar {
+  text-align: left;
+  width: 100%;
+}
+
 .dialog-top-actions {
   position: absolute;
   top: 16px;
