@@ -312,6 +312,8 @@ function render() {
     } else if (currentView === "review") {
       renderReview();
     }
+
+    initDragAndDrop();
   } catch (e) {
     console.error("Erreur de rendu:", e);
   }
@@ -411,7 +413,7 @@ function taskCard(task) {
   const isDone = task.status === "done";
 
   return `
-    <article class="task-card ${isDone ? 'done' : ''}" data-task-id="${task.id}" tabindex="0">
+    <article class="task-card ${isDone ? 'done' : ''}" data-task-id="${task.id}" tabindex="0" draggable="true">
       <div class="task-main">
         <div class="task-content-wrapper">
           <p class="task-title">${escapeHTML(task.title)}</p>
@@ -708,7 +710,49 @@ function initEventListeners() {
   });
 }
 
-function persistAndRender() { saveState(); render(); }
+function persistAndRender() {
+  saveState();
+  render();
+}
+
+function initDragAndDrop() {
+  const cards = document.querySelectorAll(".task-card");
+  const lanes = document.querySelectorAll(".work-lane");
+
+  cards.forEach(card => {
+    card.addEventListener("dragstart", () => {
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+    });
+  });
+
+  lanes.forEach(lane => {
+    lane.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      lane.classList.add("drag-over");
+    });
+
+    lane.addEventListener("dragleave", () => {
+      lane.classList.remove("drag-over");
+    });
+
+    lane.addEventListener("drop", (e) => {
+      e.preventDefault();
+      lane.classList.remove("drag-over");
+      const draggingCard = document.querySelector(".dragging");
+      if (!draggingCard) return;
+
+      const taskId = draggingCard.dataset.taskId;
+      const nextStatus = lane.dataset.laneId;
+      
+      if (nextStatus) {
+        setTaskStatus(taskId, nextStatus);
+      }
+    });
+  });
+}
 
 async function init() {
   initEventListeners();
