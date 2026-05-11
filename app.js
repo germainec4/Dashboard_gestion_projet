@@ -413,7 +413,7 @@ function taskCard(task) {
   const isDone = task.status === "done";
 
   return `
-    <article class="task-card ${isDone ? 'done' : ''}" data-task-id="${task.id}" tabindex="0" draggable="true">
+    <article class="task-card ${isDone ? 'done' : ''}" data-task-id="${task.id}" data-action="edit-task" data-id="${task.id}" tabindex="0" draggable="true">
       <div class="task-main">
         <div class="task-content-wrapper">
           <p class="task-title">${escapeHTML(task.title)}</p>
