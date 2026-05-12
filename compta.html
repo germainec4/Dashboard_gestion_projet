@@ -12,8 +12,14 @@
         gap: 2rem;
       }
       .topbar {
-        justify-content: space-between;
-        align-items: center;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding-top: 10px !important;
+      }
+      .back-to-dashboard {
+        margin-left: auto !important;
       }
       .metrics-grid {
         display: grid;
@@ -109,7 +115,7 @@
           <p class="eyebrow">Finance & Suivi</p>
           <h1>Comptabilité</h1>
         </div>
-        <a href="index.html" class="button button-secondary" style="text-decoration: none;">← Retour au Dashboard</a>
+        <a href="index.html" class="button button-secondary back-to-dashboard" style="text-decoration: none;">← Retour au Dashboard</a>
       </header>
 
       <main class="compta-dashboard">
@@ -267,6 +273,6 @@
 
     <div id="toastContainer" class="toast-container"></div>
     
-    <script type="module" src="compta.js"></script>
+    <script type="module" src="compta.js?v=5"></script>
   </body>
 </html>

@@ -50,8 +50,22 @@ async function loadData() {
     showToast("Erreur lors du chargement des missions", "error");
     return;
   }
-  missions = data;
+  missions = data || [];
+  console.log("Missions chargées:", missions.length);
   renderAll();
+}
+
+function parseSafeDate(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length < 3) return new Date(dateStr);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function getQuarterKey(date) {
+    const year = date.getFullYear();
+    const quarter = Math.floor(date.getMonth() / 3) + 1;
+    return `${year}-Q${quarter}`;
 }
 
 // === RENDU UI ===
@@ -107,16 +121,17 @@ function renderTable() {
   const groups = {};
   missions.forEach(m => {
     // Utiliser la date de paiement en priorité, sinon la date de validation, sinon la date de création
-    const date = m.date_payment ? new Date(m.date_payment) : (m.date_validation ? new Date(m.date_validation) : new Date(m.created_at));
+    let date = null;
+    if (m.date_payment) date = parseSafeDate(m.date_payment);
+    else if (m.date_validation) date = parseSafeDate(m.date_validation);
+    else date = new Date(m.created_at);
+
+    const key = getQuarterKey(date);
     const year = date.getFullYear();
     const quarter = Math.floor(date.getMonth() / 3) + 1;
-    const key = `${year}-Q${quarter}`;
     
     if (!groups[key]) groups[key] = { year, quarter, items: [], total: 0 };
     groups[key].items.push(m);
-    // On ne compte dans le total financier du trimestre que ce qui est payé (ou on compte tout ? 
-    // L'utilisateur dit "le total du T1 2026 doit être de X", ce qui correspond souvent au CA encaissé)
-    // Pour correspondre au chiffre attendu, on va sommer le prix.
     groups[key].total += parseFloat(m.price) || 0;
   });
 
