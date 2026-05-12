@@ -8,7 +8,6 @@ let missions = [];
 let collapsedGroups = new Set(); // Ex: "2024-Q4"
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  console.log("V1.5.2: Supabase client initializing...");
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
@@ -52,8 +51,14 @@ async function loadData() {
     return;
   }
   missions = data || [];
-  console.log("Missions chargées:", missions.length);
   renderAll();
+}
+
+function cleanPrice(val) {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val;
+  let s = val.toString().replace(/\s/g, '').replace(',', '.');
+  return parseFloat(s) || 0;
 }
 
 function parseSafeDate(dateStr) {
@@ -85,13 +90,13 @@ function renderKPIs() {
   const currentYear = now.getFullYear();
 
   missions.forEach(m => {
-    const price = parseFloat(m.price) || 0;
+    const price = cleanPrice(m.price);
     caTotal += price;
 
     if (m.status !== 'payee') {
       resteARecevoir += price;
     } else if (m.status === 'payee' && m.date_payment) {
-      const pDate = new Date(m.date_payment);
+      const pDate = parseSafeDate(m.date_payment);
       if (pDate.getFullYear() === currentYear && Math.floor(pDate.getMonth() / 3) === currentQuarter) {
         caQuarterPaye += price;
       }
@@ -133,7 +138,7 @@ function renderTable() {
     
     if (!groups[key]) groups[key] = { year, quarter, items: [], total: 0 };
     groups[key].items.push(m);
-    groups[key].total += parseFloat(m.price) || 0;
+    groups[key].total += cleanPrice(m.price);
   });
 
   // 2. Tri des groupes par date décroissante

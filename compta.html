@@ -12,11 +12,8 @@
         gap: 2rem;
       }
       .topbar {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-        padding-top: 10px !important;
+        justify-content: space-between;
+        align-items: center;
       }
       .back-to-dashboard {
         margin-left: auto !important;
@@ -97,12 +94,11 @@
       .status-payee { background: #2f855a; color: #fff; }
       
       .group-header {
-        background: #1e293b !important;
-        color: #38bdf8 !important;
-        border-left: 4px solid #38bdf8 !important;
+        background: var(--surface-2);
+        cursor: pointer;
       }
       .group-header:hover {
-        background: #334155 !important;
+        background: var(--surface-3);
       }
       .mission-row:hover {
         background: var(--surface-2);
@@ -110,14 +106,6 @@
       .late-payment {
         color: var(--danger);
         font-weight: bold;
-      }
-      .version-badge {
-        font-size: 10px;
-        color: var(--muted);
-        opacity: 0.5;
-        position: fixed;
-        bottom: 5px;
-        right: 5px;
       }
     </style>
   </head>
@@ -195,7 +183,6 @@
           <p class="muted">© Germaine's corp — Comptabilité</p>
         </div>
       </footer>
-      <div class="version-badge">v1.5.2 - Grouping Enabled</div>
     </div>
 
     <!-- Modale Ajout/Edition Mission -->
@@ -287,6 +274,6 @@
 
     <div id="toastContainer" class="toast-container"></div>
     
-    <script type="module" src="compta.js?v=12"></script>
+    <script type="module" src="compta.js"></script>
   </body>
 </html>
