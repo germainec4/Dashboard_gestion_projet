@@ -82,7 +82,9 @@ function renderAll() {
 }
 
 function renderKPIs() {
-  const filterVal = document.getElementById('kpiQuarterFilter').value;
+  const checkboxes = document.querySelectorAll('.quarter-checkbox:checked');
+  const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+  const isAll = selectedValues.includes('all');
   
   let caTotal = 0;
   let resteARecevoir = 0;
@@ -93,8 +95,7 @@ function renderKPIs() {
     const dateObj = parseSafeDate(dateToUse);
     const qKey = dateObj ? getQuarterKey(dateObj) : null;
 
-    // Logique de filtrage
-    const isMatch = (filterVal === 'all') || (qKey === filterVal);
+    const isMatch = isAll || (qKey && selectedValues.includes(qKey));
 
     if (isMatch) {
       if (m.status === 'payee') {
@@ -105,55 +106,83 @@ function renderKPIs() {
     }
   });
 
-  // Calculs taxes
-  const urssaf = caTotal * URSSAF_RATE;
+  document.getElementById('kpi-ca').textContent = formatCurrency(caTotal);
+  document.getElementById('kpi-urssaf').textContent = formatCurrency(caTotal * URSSAF_RATE);
   const caApresAbattement = caTotal * IMPOT_ABATTEMENT;
   const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
-
-  document.getElementById('kpi-ca').textContent = formatCurrency(caTotal);
-  document.getElementById('kpi-urssaf').textContent = formatCurrency(urssaf);
   document.getElementById('kpi-impots').textContent = formatCurrency(impots);
   document.getElementById('kpi-reste').textContent = formatCurrency(resteARecevoir);
+
+  // Mettre à jour le label du bouton
+  const label = document.getElementById('multiSelectLabel');
+  if (isAll) {
+    label.textContent = "Tout l'historique";
+  } else if (selectedValues.length === 0) {
+    label.textContent = "Aucun trimestre";
+  } else if (selectedValues.length === 1) {
+    const [year, qNum] = selectedValues[0].split('-Q');
+    label.textContent = `${year} — T${qNum}`;
+  } else {
+    label.textContent = `${selectedValues.length} trimestres`;
+  }
 }
 
 function populateKPIFilter() {
-  const select = document.getElementById('kpiQuarterFilter');
-  if (!select) return;
+  const dropdown = document.getElementById('multiSelectDropdown');
+  if (!dropdown) return;
 
-  // Sauvegarder la valeur actuelle si elle existe
-  const currentVal = select.value;
+  // Sauvegarder les sélections actuelles
+  const previousSelections = Array.from(document.querySelectorAll('.quarter-checkbox:checked')).map(cb => cb.value);
   
-  // Vider sauf "Tout"
-  select.innerHTML = '<option value="all">Tout l\'historique</option>';
+  dropdown.innerHTML = `
+    <label class="multi-select-option">
+      <input type="checkbox" class="quarter-checkbox" value="all" ${previousSelections.includes('all') ? 'checked' : ''}>
+      Tout l'historique
+    </label>
+  `;
 
   const quarters = new Set();
   missions.forEach(m => {
     const dateToUse = m.date_payment || m.date_validation || '';
     const dateObj = parseSafeDate(dateToUse);
-    if (dateObj) {
-      quarters.add(getQuarterKey(dateObj));
-    }
+    if (dateObj) quarters.add(getQuarterKey(dateObj));
   });
 
   const sortedQuarters = Array.from(quarters).sort().reverse();
-  
-  const now = new Date();
-  const currentQKey = getQuarterKey(now);
+  const currentQKey = getQuarterKey(new Date());
 
   sortedQuarters.forEach(q => {
-    const option = document.createElement('option');
-    option.value = q;
     const [year, qNum] = q.split('-Q');
-    option.textContent = `${year} — Trimestre ${qNum}`;
-    select.appendChild(option);
+    const isChecked = previousSelections.length > 0 ? previousSelections.includes(q) : (q === currentQKey);
+    
+    const label = document.createElement('label');
+    label.className = 'multi-select-option';
+    label.innerHTML = `
+      <input type="checkbox" class="quarter-checkbox" value="${q}" ${isChecked ? 'checked' : ''}>
+      ${year} — Trimestre ${qNum}
+    `;
+    dropdown.appendChild(label);
   });
 
-  // Par défaut au trimestre actuel s'il existe dans les données, sinon garder le précédent ou "all"
-  if (currentVal && currentVal !== 'all') {
-    select.value = currentVal;
-  } else if (quarters.has(currentQKey)) {
-    select.value = currentQKey;
-  }
+  // Ajouter les écouteurs
+  dropdown.querySelectorAll('.quarter-checkbox').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      if (cb.value === 'all' && cb.checked) {
+        // Décocher les autres si "Tout" est coché
+        dropdown.querySelectorAll('.quarter-checkbox').forEach(other => {
+          if (other !== cb) other.checked = false;
+        });
+      } else if (cb.checked) {
+        // Décocher "Tout" si un autre est coché
+        const allCb = dropdown.querySelector('input[value="all"]');
+        if (allCb) allCb.checked = false;
+      }
+      renderKPIs();
+    });
+  });
+
+  // Initialiser le label au premier chargement
+  if (previousSelections.length === 0) renderKPIs();
 }
 
 function renderTable() {
@@ -269,8 +298,22 @@ function renderTable() {
 
 // === ACTIONS & EVENTS ===
 function initEventListeners() {
-  document.getElementById('kpiQuarterFilter').addEventListener('change', renderKPIs);
+  const multiBtn = document.querySelector('.multi-select-btn');
+  const multiDropdown = document.getElementById('multiSelectDropdown');
   
+  if (multiBtn) {
+    multiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      multiDropdown.classList.toggle('show');
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (multiDropdown && !multiDropdown.contains(e.target) && !multiBtn.contains(e.target)) {
+      multiDropdown.classList.remove('show');
+    }
+  });
+
   document.getElementById('addMissionBtn').addEventListener('click', () => {
     document.getElementById('missionForm').reset();
     document.getElementById('missionId').value = "";
