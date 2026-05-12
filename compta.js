@@ -199,7 +199,7 @@ function renderTable() {
         tr.style.cursor = 'pointer';
         tr.dataset.id = m.id;
         tr.innerHTML = `
-          <td><strong>${escapeHTML(m.title)}</strong></td>
+          <td class="col-task"><strong>${escapeHTML(m.title)}</strong></td>
           <td>${escapeHTML(m.client || '')}</td>
           <td>${escapeHTML(m.entity || '')}</td>
           <td>${m.quote_accepted ? '✅' : (m.quote_sent ? 'Envoyé' : '❌')}</td>

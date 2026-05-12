@@ -57,6 +57,9 @@
         padding: 1.5rem;
         min-height: 300px;
       }
+      .app-shell {
+        width: min(1800px, calc(100vw - 40px));
+      }
       .table-container {
         background: var(--bg-surface);
         border: 1px solid var(--border);
@@ -67,11 +70,20 @@
         width: 100%;
         border-collapse: collapse;
         text-align: left;
+        table-layout: auto;
       }
       .missions-table th, .missions-table td {
-        padding: 1rem;
+        padding: 1rem 0.75rem;
         border-bottom: 1px solid var(--border);
+      }
+      /* On garde les dates et prix sur une ligne, mais on permet aux titres de wrapper */
+      .missions-table td:not(.col-task) {
         white-space: nowrap;
+      }
+      .col-task {
+        min-width: 250px;
+        white-space: normal;
+        word-break: break-word;
       }
       .missions-table th {
         color: var(--text-muted);
