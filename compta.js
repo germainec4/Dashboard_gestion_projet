@@ -461,11 +461,6 @@ function initEventListeners() {
     }
   });
   
-  // CSV Import Mock
-  document.getElementById('importCsvBtn').addEventListener('click', () => {
-    alert("Pour importer les 90 lignes, nous pourrons ajouter un fichier script d'import plus tard. La fonctionnalité est prête à être connectée.");
-  });
-
   // Graphiques & Objectifs
   document.getElementById('toggleChartsBtn').addEventListener('click', (e) => {
     const section = document.getElementById('chartsSection');
