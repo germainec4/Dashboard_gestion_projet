@@ -602,7 +602,7 @@ function updateCharts(filteredMissions) {
       {
         label: 'Objectif CA',
         data: evolutionGoals,
-        borderColor: '#e53e3e',
+        borderColor: 'rgba(229, 62, 62, 0.7)',
         borderDash: [2, 2],
         borderWidth: 1.5,
         tension: 0,
