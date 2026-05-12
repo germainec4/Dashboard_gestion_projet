@@ -110,7 +110,7 @@ function renderKPIs() {
 
   missions.forEach(m => {
     const price = cleanPrice(m.price);
-    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateToUse = m.date_validation || m.date_payment || '';
     const dateObj = parseSafeDate(dateToUse);
     const qKey = dateObj ? getQuarterKey(dateObj) : null;
 
@@ -133,7 +133,7 @@ function renderKPIs() {
 
   // Mise à jour des graphiques avec les missions filtrées
   const filteredMissions = missions.filter(m => {
-    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateToUse = m.date_validation || m.date_payment || '';
     const dateObj = parseSafeDate(dateToUse);
     const qKey = dateObj ? getQuarterKey(dateObj) : null;
     return isAll || (qKey && selectedValues.includes(qKey));
@@ -170,7 +170,7 @@ function populateKPIFilter() {
 
   const quarters = new Set();
   missions.forEach(m => {
-    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateToUse = m.date_validation || m.date_payment || '';
     const dateObj = parseSafeDate(dateToUse);
     if (dateObj) quarters.add(getQuarterKey(dateObj));
   });
@@ -226,8 +226,8 @@ function renderTable() {
   missions.forEach(m => {
     // Utiliser la date de paiement en priorité, sinon la date de validation, sinon la date de création
     let date = null;
-    if (m.date_payment) date = parseSafeDate(m.date_payment);
-    else if (m.date_validation) date = parseSafeDate(m.date_validation);
+    if (m.date_validation) date = parseSafeDate(m.date_validation);
+    else if (m.date_payment) date = parseSafeDate(m.date_payment);
     else date = new Date(m.created_at);
 
     const key = getQuarterKey(date);
@@ -552,7 +552,7 @@ function updateCharts(filteredMissions) {
   // 1. Data Processing for Monthly Evolution
   const monthlyData = {};
   filteredMissions.forEach(m => {
-    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateToUse = m.date_validation || m.date_payment || '';
     const dateObj = parseSafeDate(dateToUse);
     if (!dateObj) return;
     
