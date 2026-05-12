@@ -557,40 +557,47 @@ function updateCharts(filteredMissions) {
     if (!dateObj) return;
     
     const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-    const monthLabel = dateObj.toLocaleDateString('fr-FR', { month: 'short', year: '2y' });
+    const monthLabel = dateObj.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
     
     if (!monthlyData[monthKey]) monthlyData[monthKey] = { label: monthLabel, ca: 0 };
     monthlyData[monthKey].ca += cleanPrice(m.price);
   });
 
   const sortedMonthKeys = Object.keys(monthlyData).sort();
-  const evolutionLabels = sortedMonthKeys.map(k => monthlyData[k].label);
-  const evolutionCA = sortedMonthKeys.map(k => monthlyData[k].ca);
-  const evolutionNet = evolutionCA.map(ca => ca * 0.7);
+  if (sortedMonthKeys.length === 0) {
+    // Si pas de données, on vide les graphiques proprement
+    chartEvolution.data.labels = [];
+    chartEvolution.data.datasets = [];
+    chartEvolution.update();
+  } else {
+    const evolutionLabels = sortedMonthKeys.map(k => monthlyData[k].label);
+    const evolutionCA = sortedMonthKeys.map(k => monthlyData[k].ca);
+    const evolutionNet = evolutionCA.map(ca => ca * 0.7);
 
-  chartEvolution.data.labels = evolutionLabels;
-  chartEvolution.data.datasets = [
-    {
-      label: 'CA',
-      data: evolutionCA,
-      borderColor: '#3291ff',
-      backgroundColor: 'rgba(50, 145, 255, 0.1)',
-      borderWidth: 3,
-      tension: 0.4,
-      fill: true,
-      pointRadius: 2
-    },
-    {
-      label: 'Salaire Net (70%)',
-      data: evolutionNet,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
-      borderDash: [5, 5],
-      borderWidth: 1.5,
-      tension: 0.4,
-      pointRadius: 0
-    }
-  ];
-  chartEvolution.update();
+    chartEvolution.data.labels = evolutionLabels;
+    chartEvolution.data.datasets = [
+      {
+        label: 'CA',
+        data: evolutionCA,
+        borderColor: '#3291ff',
+        backgroundColor: 'rgba(50, 145, 255, 0.1)',
+        borderWidth: 3,
+        tension: 0.4,
+        fill: true,
+        pointRadius: 2
+      },
+      {
+        label: 'Salaire Net (70%)',
+        data: evolutionNet,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderDash: [5, 5],
+        borderWidth: 1.5,
+        tension: 0.4,
+        pointRadius: 0
+      }
+    ];
+    chartEvolution.update();
+  }
 
   // 2. Data Processing for Quarterly Performance
   const quarterlyData = {};
@@ -605,31 +612,37 @@ function updateCharts(filteredMissions) {
   });
 
   const sortedQKeys = Object.keys(quarterlyData).sort();
-  const qLabels = sortedQKeys.map(k => k.replace('-Q', ' T'));
-  const qCA = sortedQKeys.map(k => quarterlyData[k]);
-  const qGoals = sortedQKeys.map(k => quarterlyGoals[k] || 0);
+  if (sortedQKeys.length === 0) {
+    chartGoals.data.labels = [];
+    chartGoals.data.datasets = [];
+    chartGoals.update();
+  } else {
+    const qLabels = sortedQKeys.map(k => k.replace('-Q', ' T'));
+    const qCA = sortedQKeys.map(k => quarterlyData[k]);
+    const qGoals = sortedQKeys.map(k => quarterlyGoals[k] || 0);
 
-  chartGoals.data.labels = qLabels;
-  chartGoals.data.datasets = [
-    {
-      label: 'CA réalisé',
-      data: qCA,
-      backgroundColor: 'rgba(47, 133, 90, 0.6)',
-      borderRadius: 4,
-      barThickness: 30
-    },
-    {
-      label: 'Objectif CA',
-      data: qGoals,
-      type: 'line',
-      borderColor: '#e53e3e',
-      borderWidth: 2,
-      pointBackgroundColor: '#e53e3e',
-      pointRadius: 4,
-      tension: 0
-    }
-  ];
-  chartGoals.update();
+    chartGoals.data.labels = qLabels;
+    chartGoals.data.datasets = [
+      {
+        label: 'CA réalisé',
+        data: qCA,
+        backgroundColor: 'rgba(47, 133, 90, 0.6)',
+        borderRadius: 4,
+        barThickness: 30
+      },
+      {
+        label: 'Objectif CA',
+        data: qGoals,
+        type: 'line',
+        borderColor: '#e53e3e',
+        borderWidth: 2,
+        pointBackgroundColor: '#e53e3e',
+        pointRadius: 4,
+        tension: 0
+      }
+    ];
+    chartGoals.update();
+  }
 }
 
 // === UTILS ===
