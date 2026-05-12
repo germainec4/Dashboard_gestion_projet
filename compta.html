@@ -417,6 +417,46 @@
           min-height: auto;
           cursor: pointer;
         }
+
+        /* Styles pour la modale des objectifs */
+        #goalsInputsContainer {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 1.5rem;
+          max-height: 60vh;
+          overflow-y: auto;
+          padding: 1rem;
+          margin-top: 1rem;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid var(--border);
+        }
+        .goal-input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .goal-input-group label {
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          font-weight: 600;
+        }
+        .goal-input {
+          background: #000;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 10px 12px;
+          color: var(--text);
+          font-size: 1rem;
+          font-weight: 700;
+          width: 100%;
+          transition: border-color 0.2s;
+        }
+        .goal-input:focus {
+          border-color: #e53e3e;
+          outline: none;
+        }
       </style>
 
       <main class="compta-dashboard">
@@ -637,7 +677,7 @@
     </dialog>
 
     <dialog id="goalsDialog" class="dialog">
-      <div class="dialog-content" style="max-width: 400px;">
+      <div class="dialog-content" style="max-width: 800px; width: 90vw;">
         <div class="dialog-header">
           <div>
             <p class="section-kicker">Configuration</p>
