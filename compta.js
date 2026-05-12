@@ -106,13 +106,17 @@ function renderTable() {
   // 1. Groupement des missions
   const groups = {};
   missions.forEach(m => {
-    const date = m.date_validation ? new Date(m.date_validation) : new Date(m.created_at);
+    // Utiliser la date de paiement en priorité, sinon la date de validation, sinon la date de création
+    const date = m.date_payment ? new Date(m.date_payment) : (m.date_validation ? new Date(m.date_validation) : new Date(m.created_at));
     const year = date.getFullYear();
     const quarter = Math.floor(date.getMonth() / 3) + 1;
     const key = `${year}-Q${quarter}`;
     
     if (!groups[key]) groups[key] = { year, quarter, items: [], total: 0 };
     groups[key].items.push(m);
+    // On ne compte dans le total financier du trimestre que ce qui est payé (ou on compte tout ? 
+    // L'utilisateur dit "le total du T1 2026 doit être de X", ce qui correspond souvent au CA encaissé)
+    // Pour correspondre au chiffre attendu, on va sommer le prix.
     groups[key].total += parseFloat(m.price) || 0;
   });
 
@@ -129,9 +133,10 @@ function renderTable() {
     const isCollapsed = collapsedGroups.has(key);
     
     // Trier les missions au sein du groupe par date décroissante (plus récent en haut)
+    // On utilise la même logique de priorité de date pour le tri
     group.items.sort((a, b) => {
-        const dateA = a.date_validation ? new Date(a.date_validation) : new Date(a.created_at);
-        const dateB = b.date_validation ? new Date(b.date_validation) : new Date(b.created_at);
+        const dateA = a.date_payment ? new Date(a.date_payment) : (a.date_validation ? new Date(a.date_validation) : new Date(a.created_at));
+        const dateB = b.date_payment ? new Date(b.date_payment) : (b.date_validation ? new Date(b.date_validation) : new Date(b.created_at));
         return dateB - dateA;
     });
     
