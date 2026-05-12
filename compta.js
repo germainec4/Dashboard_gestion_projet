@@ -610,8 +610,7 @@ function updateCharts(filteredMissions) {
     const evolutionNet = evolutionCA.map(ca => ca * 0.7);
     const evolutionGoals = sortedMonthKeys.map(k => monthlyGoals[k] || 0);
 
-    chartEvolution.data.labels = evolutionLabels;
-    chartEvolution.data.datasets = [
+    const datasets = [
       {
         label: 'CA',
         data: evolutionCA,
@@ -621,8 +620,11 @@ function updateCharts(filteredMissions) {
         tension: 0.4,
         fill: true,
         pointRadius: 2
-      },
-      {
+      }
+    ];
+
+    if (document.getElementById('toggleMonthlyGoal')?.checked) {
+      datasets.push({
         label: 'Objectif',
         data: evolutionGoals,
         borderColor: 'rgba(229, 62, 62, 0.7)',
@@ -630,19 +632,22 @@ function updateCharts(filteredMissions) {
         borderWidth: 1.5,
         tension: 0,
         pointRadius: 0,
-        fill: false,
-        hidden: !document.getElementById('toggleMonthlyGoal')?.checked
-      },
-      {
-        label: 'Net',
-        data: evolutionNet,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        borderDash: [5, 5],
-        borderWidth: 1.5,
-        tension: 0.4,
-        pointRadius: 0
-      }
-    ];
+        fill: false
+      });
+    }
+
+    datasets.push({
+      label: 'Net',
+      data: evolutionNet,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderDash: [5, 5],
+      borderWidth: 1.5,
+      tension: 0.4,
+      pointRadius: 0
+    });
+
+    chartEvolution.data.labels = evolutionLabels;
+    chartEvolution.data.datasets = datasets;
     chartEvolution.update();
   }
 
