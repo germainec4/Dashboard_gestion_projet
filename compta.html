@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comptabilité - Germaine's corp</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .compta-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+      .metric-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .metric-card p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0;
+      }
+      .metric-card h3 {
+        font-size: 1.8rem;
+        margin: 0;
+        color: var(--text);
+      }
+      .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      @media (max-width: 768px) {
+        .charts-grid { grid-template-columns: 1fr; }
+      }
+      .chart-container {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        min-height: 300px;
+      }
+      .table-container {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow-x: auto;
+      }
+      .missions-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+      .missions-table th, .missions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      .missions-table th {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+      .missions-table tbody tr:hover {
+        background: var(--bg);
+      }
+      .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+      .status-pas_commence { background: #333; color: #fff; }
+      .status-en_cours { background: #2b6cb0; color: #fff; }
+      .status-bloque { background: #c53030; color: #fff; }
+      .status-terminee { background: #dd6b20; color: #fff; }
+      .status-payee { background: #2f855a; color: #fff; }
+      
+      .late-payment {
+        color: var(--danger);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Finance & Suivi</p>
+          <h1>Comptabilité</h1>
+        </div>
+        <a href="index.html" class="button button-secondary" style="text-decoration: none;">← Retour au Dashboard</a>
+      </header>
+
+      <main class="compta-dashboard">
+        <!-- KPIs -->
+        <section class="metrics-grid">
+          <div class="metric-card">
+            <p>Chiffre d'Affaires Total</p>
+            <h3 id="kpi-ca">0,00 €</h3>
+          </div>
+          <div class="metric-card" style="border-top: 3px solid #e53e3e;">
+            <p>URSSAF Estimé (Trimestre en cours)</p>
+            <h3 id="kpi-urssaf">0,00 €</h3>
+          </div>
+          <div class="metric-card" style="border-top: 3px solid #e53e3e;">
+            <p>Impôts Estimés (Année)</p>
+            <h3 id="kpi-impots">0,00 €</h3>
+          </div>
+          <div class="metric-card" style="border-top: 3px solid #319795;">
+            <p>Reste à recevoir</p>
+            <h3 id="kpi-reste">0,00 €</h3>
+          </div>
+        </section>
+
+        <!-- Charts -->
+        <section class="charts-grid">
+          <div class="chart-container">
+            <h3>Évolution CA</h3>
+            <canvas id="caEvolutionChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h3>Perf / Objectif</h3>
+            <canvas id="perfGoalChart"></canvas>
+          </div>
+        </section>
+
+        <!-- Liste des missions -->
+        <section class="panel">
+          <div class="panel-header panel-header-row">
+            <div>
+              <p class="section-kicker">Suivi des prestations</p>
+              <h2>Liste des Missions</h2>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <button id="importCsvBtn" class="button button-secondary">Importer CSV</button>
+              <button id="addMissionBtn" class="button button-primary">Nouvelle Mission</button>
+            </div>
+          </div>
+          
+          <div class="table-container">
+            <table class="missions-table">
+              <thead>
+                <tr>
+                  <th>Tâche</th>
+                  <th>Client</th>
+                  <th>Entité</th>
+                  <th>Devis OK</th>
+                  <th>Prix</th>
+                  <th>Débours</th>
+                  <th>Date Validation</th>
+                  <th>Date Paiement</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="missionsTableBody">
+                <!-- Les lignes seront générées par JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+      
+      <footer class="app-footer">
+        <div class="footer-content">
+          <p class="muted">© Germaine's corp — Comptabilité</p>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Modale Ajout/Edition Mission -->
+    <dialog id="missionDialog" class="dialog task-dialog">
+      <form id="missionForm" class="dialog-content quick-add-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Édition</p>
+            <h2 id="missionDialogTitle">Nouvelle Mission</h2>
+          </div>
+        </div>
+        <div class="dialog-top-actions">
+          <button id="closeMissionDialog" class="icon-button" type="button" aria-label="Fermer">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <input id="missionId" type="hidden" />
+        
+        <label>
+          Nom de la mission
+          <input id="missionTitle" type="text" required />
+        </label>
+        
+        <div class="task-edit-grid">
+          <label>
+            Client
+            <input id="missionClient" type="text" required />
+          </label>
+          <label>
+            Entité
+            <input id="missionEntity" type="text" />
+          </label>
+        </div>
+
+        <label>
+          Contact (Email/Tel)
+          <input id="missionContact" type="text" />
+        </label>
+        
+        <div class="task-edit-grid">
+          <label>
+            Prix (CA)
+            <input id="missionPrice" type="number" step="0.01" required />
+          </label>
+          <label>
+            Débours (Optionnel)
+            <input id="missionDebours" type="number" step="0.01" />
+          </label>
+        </div>
+
+        <div class="task-edit-grid">
+          <label>
+            Date Validation (Devis)
+            <input id="missionDateValidation" type="date" />
+          </label>
+          <label>
+            Date Paiement
+            <input id="missionDatePayment" type="date" />
+          </label>
+        </div>
+
+        <div class="task-edit-grid">
+          <label>
+            Statut
+            <select id="missionStatus" required>
+              <option value="pas_commence">Pas commencé</option>
+              <option value="en_cours">En cours</option>
+              <option value="bloque">Bloqué</option>
+              <option value="terminee">Terminée</option>
+              <option value="payee">Payée</option>
+            </select>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+            <input id="missionQuoteSent" type="checkbox" /> Devis envoyé ?
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+            <input id="missionQuoteAccepted" type="checkbox" /> Devis accepté ?
+          </label>
+        </div>
+
+        <label>
+          Notes
+          <textarea id="missionNotes" rows="2"></textarea>
+        </label>
+
+        <button class="button button-primary" type="submit">Enregistrer</button>
+      </form>
+    </dialog>
+
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="compta.js"></script>
+  </body>
+</html>
