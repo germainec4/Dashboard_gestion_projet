@@ -11,6 +11,14 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+let chartEvolution = null;
+let chartGoals = null;
+let quarterlyGoals = JSON.parse(localStorage.getItem('quarterlyGoals') || '{}');
+// Default goals if empty
+if (Object.keys(quarterlyGoals).length === 0) {
+  quarterlyGoals = { '2024-Q1': 10000, '2024-Q2': 10000, '2024-Q3': 10000, '2024-Q4': 10000, '2025-Q1': 12000, '2025-Q2': 12000, '2026-Q2': 15000 };
+}
+
 // === CONSTANTES & CONFIG ===
 const URSSAF_RATE = 0.2575;
 const IMPOT_ABATTEMENT = 0.66;
@@ -41,6 +49,7 @@ async function init() {
 
   await loadData();
   initEventListeners();
+  initCharts();
 }
 
 async function loadData() {
@@ -111,6 +120,15 @@ function renderKPIs() {
   const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
+
+  // Mise à jour des graphiques avec les missions filtrées
+  const filteredMissions = missions.filter(m => {
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    const qKey = dateObj ? getQuarterKey(dateObj) : null;
+    return isAll || (qKey && selectedValues.includes(qKey));
+  });
+  updateCharts(filteredMissions);
 
   // Mettre à jour le label du bouton
   const label = document.getElementById('multiSelectLabel');
@@ -408,6 +426,200 @@ function initEventListeners() {
   document.getElementById('importCsvBtn').addEventListener('click', () => {
     alert("Pour importer les 90 lignes, nous pourrons ajouter un fichier script d'import plus tard. La fonctionnalité est prête à être connectée.");
   });
+
+  // Graphiques & Objectifs
+  document.getElementById('toggleChartsBtn').addEventListener('click', (e) => {
+    const section = document.getElementById('chartsSection');
+    const isShowing = section.classList.toggle('show');
+    e.currentTarget.innerHTML = isShowing 
+      ? `<svg class="icon" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Masquer les graphiques`
+      : `<svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17l-4-4-4 4-4-4"/></svg> Afficher les graphiques`;
+    if (isShowing) renderKPIs(); // Refresh graphs on show
+  });
+
+  document.getElementById('openGoalsBtn').addEventListener('click', () => {
+    renderGoalsInputs();
+    document.getElementById('goalsDialog').showModal();
+  });
+
+  document.getElementById('closeGoalsDialog').addEventListener('click', () => {
+    document.getElementById('goalsDialog').close();
+  });
+
+  document.getElementById('saveGoalsBtn').addEventListener('click', () => {
+    const inputs = document.querySelectorAll('.goal-input');
+    inputs.forEach(input => {
+      quarterlyGoals[input.dataset.quarter] = parseFloat(input.value) || 0;
+    });
+    localStorage.setItem('quarterlyGoals', JSON.stringify(quarterlyGoals));
+    document.getElementById('goalsDialog').close();
+    renderKPIs();
+    showToast("Objectifs mis à jour !");
+  });
+}
+
+function renderGoalsInputs() {
+  const container = document.getElementById('goalsInputsContainer');
+  container.innerHTML = '';
+  
+  // On récupère tous les trimestres présents dans les missions + ceux déjà définis dans les objectifs
+  const quarters = new Set(Object.keys(quarterlyGoals));
+  missions.forEach(m => {
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    if (dateObj) quarters.add(getQuarterKey(dateObj));
+  });
+
+  const sortedQuarters = Array.from(quarters).sort().reverse();
+  
+  sortedQuarters.forEach(q => {
+    const val = quarterlyGoals[q] || 0;
+    const row = document.createElement('div');
+    row.className = 'goal-input-row';
+    row.innerHTML = `
+      <label>${q.replace('-Q', ' — T')}</label>
+      <input type="number" class="goal-input" data-quarter="${q}" value="${val}" step="100">
+    `;
+    container.appendChild(row);
+  });
+}
+
+// === CHARTS LOGIC ===
+function initCharts() {
+  const ctxEvolution = document.getElementById('chartEvolution').getContext('2d');
+  const ctxGoals = document.getElementById('chartGoals').getContext('2d');
+
+  const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { color: '#8f8f8f', usePointStyle: true, boxWidth: 6 }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#666' } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } }
+    }
+  };
+
+  chartEvolution = new Chart(ctxEvolution, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: {
+      ...commonOptions,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        ...commonOptions.plugins,
+        tooltip: {
+          backgroundColor: '#111',
+          titleColor: '#fff',
+          bodyColor: '#ccc',
+          borderColor: '#333',
+          borderWidth: 1
+        }
+      }
+    }
+  });
+
+  chartGoals = new Chart(ctxGoals, {
+    type: 'bar',
+    data: { labels: [], datasets: [] },
+    options: {
+      ...commonOptions,
+      plugins: {
+        ...commonOptions.plugins,
+        tooltip: { enabled: true }
+      }
+    }
+  });
+}
+
+function updateCharts(filteredMissions) {
+  if (!chartEvolution || !chartGoals) return;
+
+  // 1. Data Processing for Monthly Evolution
+  const monthlyData = {};
+  filteredMissions.forEach(m => {
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    if (!dateObj) return;
+    
+    const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+    const monthLabel = dateObj.toLocaleDateString('fr-FR', { month: 'short', year: '2y' });
+    
+    if (!monthlyData[monthKey]) monthlyData[monthKey] = { label: monthLabel, ca: 0 };
+    monthlyData[monthKey].ca += cleanPrice(m.price);
+  });
+
+  const sortedMonthKeys = Object.keys(monthlyData).sort();
+  const evolutionLabels = sortedMonthKeys.map(k => monthlyData[k].label);
+  const evolutionCA = sortedMonthKeys.map(k => monthlyData[k].ca);
+  const evolutionNet = evolutionCA.map(ca => ca * 0.7);
+
+  chartEvolution.data.labels = evolutionLabels;
+  chartEvolution.data.datasets = [
+    {
+      label: 'CA',
+      data: evolutionCA,
+      borderColor: '#3291ff',
+      backgroundColor: 'rgba(50, 145, 255, 0.1)',
+      borderWidth: 3,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 2
+    },
+    {
+      label: 'Salaire Net (70%)',
+      data: evolutionNet,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderDash: [5, 5],
+      borderWidth: 1.5,
+      tension: 0.4,
+      pointRadius: 0
+    }
+  ];
+  chartEvolution.update();
+
+  // 2. Data Processing for Quarterly Performance
+  const quarterlyData = {};
+  filteredMissions.forEach(m => {
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    if (!dateObj) return;
+    
+    const qKey = getQuarterKey(dateObj);
+    if (!quarterlyData[qKey]) quarterlyData[qKey] = 0;
+    quarterlyData[qKey] += cleanPrice(m.price);
+  });
+
+  const sortedQKeys = Object.keys(quarterlyData).sort();
+  const qLabels = sortedQKeys.map(k => k.replace('-Q', ' T'));
+  const qCA = sortedQKeys.map(k => quarterlyData[k]);
+  const qGoals = sortedQKeys.map(k => quarterlyGoals[k] || 0);
+
+  chartGoals.data.labels = qLabels;
+  chartGoals.data.datasets = [
+    {
+      label: 'CA réalisé',
+      data: qCA,
+      backgroundColor: 'rgba(47, 133, 90, 0.6)',
+      borderRadius: 4,
+      barThickness: 30
+    },
+    {
+      label: 'Objectif CA',
+      data: qGoals,
+      type: 'line',
+      borderColor: '#e53e3e',
+      borderWidth: 2,
+      pointBackgroundColor: '#e53e3e',
+      pointRadius: 4,
+      tension: 0
+    }
+  ];
+  chartGoals.update();
 }
 
 // === UTILS ===

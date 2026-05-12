@@ -161,6 +161,77 @@
           Retour au Dashboard
         </a>
       </header>
+
+      <style>
+        .charts-section {
+          margin-bottom: 2rem;
+          display: none;
+        }
+        .charts-section.show {
+          display: block;
+        }
+        .charts-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+          margin-top: 1rem;
+        }
+        .chart-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 1.5rem;
+          position: relative;
+          min-height: 350px;
+        }
+        .chart-card h3 {
+          font-size: 1.1rem;
+          margin-bottom: 1.5rem;
+          color: var(--text);
+          text-align: center;
+        }
+        .chart-toggle-btn {
+          margin: -1rem auto 2rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          opacity: 0.6;
+          font-size: 0.85rem;
+          transition: opacity 0.2s;
+        }
+        .chart-toggle-btn:hover {
+          opacity: 1;
+        }
+        .settings-btn {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          padding: 4px;
+          opacity: 0.3;
+          background: transparent;
+          border: none;
+          color: var(--text);
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .settings-btn:hover {
+          opacity: 1;
+        }
+        .goal-input-row {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        .goal-input-row label {
+          flex: 1;
+          font-size: 0.9rem;
+        }
+        .goal-input-row input {
+          width: 100px;
+          min-height: 32px;
+        }
+      </style>
       <style>
         .back-to-dashboard {
           display: inline-flex;
@@ -261,6 +332,29 @@
             <h3 id="kpi-reste">0,00 €</h3>
           </div>
         </section>
+
+        <button id="toggleChartsBtn" class="button button-secondary chart-toggle-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17l-4-4-4 4-4-4"/></svg>
+          Afficher les graphiques
+        </button>
+
+        <section id="chartsSection" class="charts-section">
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3>Évolution CA</h3>
+              <canvas id="chartEvolution"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>Perf / Objectif</h3>
+              <button id="openGoalsBtn" class="settings-btn" title="Paramètres objectifs">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
+              <canvas id="chartGoals"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- Liste des missions -->
 
 
         <!-- Liste des missions -->
@@ -394,8 +488,30 @@
       </form>
     </dialog>
 
+    <dialog id="goalsDialog" class="dialog">
+      <div class="dialog-content" style="max-width: 400px;">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Configuration</p>
+            <h2>Objectifs CA</h2>
+          </div>
+          <button id="closeGoalsDialog" class="icon-button" type="button">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="muted" style="font-size: 0.85rem; margin-bottom: 1.5rem;">Définissez vos objectifs de CA par trimestre pour le graphique de performance.</p>
+        <div id="goalsInputsContainer">
+          <!-- Injecté par JS -->
+        </div>
+        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+          <button id="saveGoalsBtn" class="button button-primary">Enregistrer</button>
+        </div>
+      </div>
+    </dialog>
+
     <div id="toastContainer" class="toast-container"></div>
     
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="compta.js"></script>
   </body>
 </html>
