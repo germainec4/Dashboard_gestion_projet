@@ -145,10 +145,9 @@ function renderKPIs() {
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
 
-  // Animation des counters au verso
-  animateCounter('soldeURSSAF', paidURSSAF);
+  // Animation du solde combiné au verso de la carte URSSAF
   const paidImpots = paidTurnoverForTax > IMPOT_SEUIL ? paidTurnoverForTax * IMPOT_TAUX : 0;
-  animateCounter('soldeImpots', paidImpots);
+  animateCounter('soldeTotal', paidURSSAF + paidImpots);
 
   // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===
   let chartMissions = [];
