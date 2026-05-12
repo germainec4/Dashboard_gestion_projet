@@ -118,10 +118,22 @@ function renderTable() {
 
   // 2. Tri des groupes par date décroissante
   const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+  
+  // 3. Initialisation des groupes repliés par défaut (sauf le plus récent)
+  if (collapsedGroups.size === 0 && sortedKeys.length > 1) {
+    sortedKeys.slice(1).forEach(key => collapsedGroups.add(key));
+  }
 
   sortedKeys.forEach(key => {
     const group = groups[key];
     const isCollapsed = collapsedGroups.has(key);
+    
+    // Trier les missions au sein du groupe par date décroissante (plus récent en haut)
+    group.items.sort((a, b) => {
+        const dateA = a.date_validation ? new Date(a.date_validation) : new Date(a.created_at);
+        const dateB = b.date_validation ? new Date(b.date_validation) : new Date(b.created_at);
+        return dateB - dateA;
+    });
     
     // Header de groupe
     const headerRow = document.createElement('tr');
@@ -157,6 +169,9 @@ function renderTable() {
         }
 
         const tr = document.createElement('tr');
+        tr.className = 'mission-row';
+        tr.style.cursor = 'pointer';
+        tr.dataset.id = m.id;
         tr.innerHTML = `
           <td><strong>${escapeHTML(m.title)}</strong></td>
           <td>${escapeHTML(m.client || '')}</td>
@@ -235,9 +250,15 @@ function initEventListeners() {
   });
 
   document.getElementById('missionsTableBody').addEventListener('click', async (e) => {
+    // Si on clique sur le bouton supprimer, on arrête la propagation pour ne pas ouvrir le mode édition
+    if (e.target.closest('.delete-btn')) return;
+
+    const row = e.target.closest('.mission-row');
     const editBtn = e.target.closest('.edit-btn');
-    if (editBtn) {
-      const m = missions.find(x => x.id === editBtn.dataset.id);
+    const targetId = editBtn ? editBtn.dataset.id : (row ? row.dataset.id : null);
+
+    if (targetId) {
+      const m = missions.find(x => x.id === targetId);
       if (m) {
         document.getElementById('missionId').value = m.id;
         document.getElementById('missionTitle').value = m.title;
