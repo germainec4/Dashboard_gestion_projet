@@ -14,6 +14,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 let chartEvolution = null;
 let chartGoals = null;
 let quarterlyGoals = JSON.parse(localStorage.getItem('quarterlyGoals') || '{}');
+let lastFilteredMissions = []; // Pour rafraîchir un seul graph sans l'autre
 // Default goals if empty
 if (Object.keys(quarterlyGoals).length === 0) {
   quarterlyGoals = { 
@@ -482,7 +483,7 @@ function initEventListeners() {
   const toggleGoal = document.getElementById('toggleMonthlyGoal');
   if (toggleGoal) {
     toggleGoal.addEventListener('change', () => {
-      renderKPIs(); // Re-render to apply the hidden state
+      updateEvolutionChart(lastFilteredMissions);
     });
   }
 }
@@ -582,9 +583,14 @@ function initCharts() {
 }
 
 function updateCharts(filteredMissions) {
-  if (!chartEvolution || !chartGoals) return;
+  lastFilteredMissions = filteredMissions;
+  updateEvolutionChart(filteredMissions);
+  updateGoalsChart(filteredMissions);
+}
 
-  // 1. Data Processing for Monthly Evolution
+function updateEvolutionChart(filteredMissions) {
+  if (!chartEvolution) return;
+
   const monthlyData = {};
   filteredMissions.forEach(m => {
     const dateToUse = m.date_validation || m.date_payment || '';
@@ -600,7 +606,6 @@ function updateCharts(filteredMissions) {
 
   const sortedMonthKeys = Object.keys(monthlyData).sort();
   if (sortedMonthKeys.length === 0) {
-    // Si pas de données, on vide les graphiques proprement
     chartEvolution.data.labels = [];
     chartEvolution.data.datasets = [];
     chartEvolution.update();
@@ -650,8 +655,11 @@ function updateCharts(filteredMissions) {
     chartEvolution.data.datasets = datasets;
     chartEvolution.update();
   }
+}
 
-  // 2. Data Processing for Quarterly Performance
+function updateGoalsChart(filteredMissions) {
+  if (!chartGoals) return;
+
   const quarterlyData = {};
   filteredMissions.forEach(m => {
     const dateToUse = m.date_payment || m.date_validation || '';
