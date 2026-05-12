@@ -29,6 +29,12 @@ if (Object.keys(quarterlyGoals).length === 0) {
   };
 }
 
+const monthlyGoals = {
+  '2026-01': 4000, '2026-02': 4000, '2026-03': 3500, '2026-04': 3500,
+  '2026-05': 3500, '2026-06': 2500, '2026-07': 2750, '2026-08': 2250,
+  '2026-09': 3250, '2026-10': 3500, '2026-11': 3500, '2026-12': 2250
+};
+
 // === CONSTANTES & CONFIG ===
 const URSSAF_RATE = 0.2575;
 const IMPOT_ABATTEMENT = 0.66;
@@ -579,6 +585,7 @@ function updateCharts(filteredMissions) {
     const evolutionLabels = sortedMonthKeys.map(k => monthlyData[k].label);
     const evolutionCA = sortedMonthKeys.map(k => monthlyData[k].ca);
     const evolutionNet = evolutionCA.map(ca => ca * 0.7);
+    const evolutionGoals = sortedMonthKeys.map(k => monthlyGoals[k] || 0);
 
     chartEvolution.data.labels = evolutionLabels;
     chartEvolution.data.datasets = [
@@ -591,6 +598,16 @@ function updateCharts(filteredMissions) {
         tension: 0.4,
         fill: true,
         pointRadius: 2
+      },
+      {
+        label: 'Objectif CA',
+        data: evolutionGoals,
+        borderColor: '#e53e3e',
+        borderDash: [2, 2],
+        borderWidth: 1.5,
+        tension: 0,
+        pointRadius: 0,
+        fill: false
       },
       {
         label: 'Salaire Net (70%)',
