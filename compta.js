@@ -478,6 +478,13 @@ function initEventListeners() {
     renderKPIs();
     showToast("Objectifs mis à jour !");
   });
+
+  const toggleGoal = document.getElementById('toggleMonthlyGoal');
+  if (toggleGoal) {
+    toggleGoal.addEventListener('change', () => {
+      renderKPIs(); // Re-render to apply the hidden state
+    });
+  }
 }
 
 function renderGoalsInputs() {
@@ -616,7 +623,8 @@ function updateCharts(filteredMissions) {
         borderWidth: 1.5,
         tension: 0,
         pointRadius: 0,
-        fill: false
+        fill: false,
+        hidden: !document.getElementById('toggleMonthlyGoal')?.checked
       },
       {
         label: 'Net',

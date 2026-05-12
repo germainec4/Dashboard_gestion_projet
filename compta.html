@@ -191,11 +191,30 @@
           position: relative;
           min-height: 0; /* Important pour Chart.js dans un flex container */
         }
+        .chart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
         .chart-card h3 {
           font-size: 1.1rem;
-          margin-bottom: 1rem;
+          margin: 0;
           color: var(--text);
-          text-align: center;
+        }
+        .toggle-goal {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          cursor: pointer;
+          user-select: none;
+        }
+        .toggle-goal input {
+          width: 14px;
+          height: 14px;
+          cursor: pointer;
         }
         .chart-toggle-btn {
           margin: -1rem auto 2rem;
@@ -348,7 +367,13 @@
         <section id="chartsSection" class="charts-section">
           <div class="charts-grid">
             <div class="chart-card">
-              <h3>Évolution CA</h3>
+              <div class="chart-header">
+                <h3>Évolution CA</h3>
+                <label class="toggle-goal">
+                  <input type="checkbox" id="toggleMonthlyGoal">
+                  <span>Objectif</span>
+                </label>
+              </div>
               <div class="chart-container">
                 <canvas id="chartEvolution"></canvas>
               </div>
