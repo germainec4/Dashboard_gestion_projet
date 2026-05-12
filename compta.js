@@ -363,6 +363,11 @@ function initEventListeners() {
     if (multiDropdown && !multiDropdown.contains(e.target) && !multiBtn.contains(e.target)) {
       multiDropdown.classList.remove('show');
     }
+    
+    // Fermer les dialogs (modales) si on clique sur le backdrop
+    if (e.target.tagName === 'DIALOG') {
+      e.target.close();
+    }
   });
 
   document.getElementById('addMissionBtn').addEventListener('click', () => {
