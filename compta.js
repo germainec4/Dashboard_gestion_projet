@@ -98,9 +98,8 @@ function renderKPIs() {
     const isMatch = isAll || (qKey && selectedValues.includes(qKey));
 
     if (isMatch) {
-      if (m.status === 'payee') {
-        caTotal += price;
-      } else {
+      caTotal += price;
+      if (m.status !== 'payee') {
         resteARecevoir += price;
       }
     }
