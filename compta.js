@@ -131,14 +131,20 @@ function renderKPIs() {
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
 
-  // Mise à jour des graphiques avec les missions filtrées
-  const filteredMissions = missions.filter(m => {
-    const dateToUse = m.date_validation || m.date_payment || '';
-    const dateObj = parseSafeDate(dateToUse);
-    const qKey = dateObj ? getQuarterKey(dateObj) : null;
-    return isAll || (qKey && selectedValues.includes(qKey));
-  });
-  updateCharts(filteredMissions);
+  // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===
+  let chartMissions = [];
+  if (isAll) {
+    chartMissions = missions;
+  } else {
+    // On extrait les années uniques des sélections (ex: "2026-Q1" -> "2026")
+    const selectedYears = new Set(selectedValues.map(v => v.split('-')[0]));
+    chartMissions = missions.filter(m => {
+      const dateToUse = m.date_validation || m.date_payment || '';
+      const dateObj = parseSafeDate(dateToUse);
+      return dateObj && selectedYears.has(dateObj.getFullYear().toString());
+    });
+  }
+  updateCharts(chartMissions);
 
   // Mettre à jour le label du bouton
   const label = document.getElementById('multiSelectLabel');
