@@ -117,7 +117,7 @@ function renderKPIs() {
 
   missions.forEach(m => {
     const price = cleanPrice(m.price);
-    const dateToUse = m.date_validation || m.date_payment || '';
+    const dateToUse = m.date_payment || m.date_validation || '';
     const dateObj = parseSafeDate(dateToUse);
     const qKey = dateObj ? getQuarterKey(dateObj) : null;
 
@@ -146,7 +146,7 @@ function renderKPIs() {
     // On extrait les années uniques des sélections (ex: "2026-Q1" -> "2026")
     const selectedYears = new Set(selectedValues.map(v => v.split('-')[0]));
     chartMissions = missions.filter(m => {
-      const dateToUse = m.date_validation || m.date_payment || '';
+      const dateToUse = m.date_payment || m.date_validation || '';
       const dateObj = parseSafeDate(dateToUse);
       return dateObj && selectedYears.has(dateObj.getFullYear().toString());
     });
@@ -239,8 +239,8 @@ function renderTable() {
   missions.forEach(m => {
     // Utiliser la date de paiement en priorité, sinon la date de validation, sinon la date de création
     let date = null;
-    if (m.date_validation) date = parseSafeDate(m.date_validation);
-    else if (m.date_payment) date = parseSafeDate(m.date_payment);
+    if (m.date_payment) date = parseSafeDate(m.date_payment);
+    else if (m.date_validation) date = parseSafeDate(m.date_validation);
     else date = new Date(m.created_at);
 
     const key = getQuarterKey(date);
@@ -593,7 +593,7 @@ function updateEvolutionChart(filteredMissions) {
 
   const monthlyData = {};
   filteredMissions.forEach(m => {
-    const dateToUse = m.date_validation || m.date_payment || '';
+    const dateToUse = m.date_payment || m.date_validation || '';
     const dateObj = parseSafeDate(dateToUse);
     if (!dateObj) return;
     
