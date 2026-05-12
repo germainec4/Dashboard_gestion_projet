@@ -114,6 +114,8 @@ function renderKPIs() {
   
   let caTotal = 0;
   let resteARecevoir = 0;
+  let paidURSSAF = 0;
+  let paidTurnoverForTax = 0;
 
   missions.forEach(m => {
     const price = cleanPrice(m.price);
@@ -127,16 +129,26 @@ function renderKPIs() {
       caTotal += price;
       if (m.status !== 'payee') {
         resteARecevoir += price;
+      } else {
+        // Uniquement pour les missions payées (le solde à avoir)
+        paidURSSAF += price * URSSAF_RATE;
+        paidTurnoverForTax += price * IMPOT_ABATTEMENT;
       }
     }
   });
 
   animateCounter('kpi-ca', caTotal);
   animateCounter('kpi-urssaf', caTotal * URSSAF_RATE);
+  
   const caApresAbattement = caTotal * IMPOT_ABATTEMENT;
   const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
+
+  // Animation des counters au verso
+  animateCounter('soldeURSSAF', paidURSSAF);
+  const paidImpots = paidTurnoverForTax > IMPOT_SEUIL ? paidTurnoverForTax * IMPOT_TAUX : 0;
+  animateCounter('soldeImpots', paidImpots);
 
   // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===
   let chartMissions = [];
