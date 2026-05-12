@@ -522,7 +522,17 @@ function initCharts() {
     },
     scales: {
       x: { grid: { display: false }, ticks: { color: '#666' } },
-      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } }
+      y: { 
+        grid: { color: 'rgba(255,255,255,0.05)' }, 
+        ticks: { 
+          color: '#666',
+          callback: function(value) {
+            if (value >= 1000) return (value / 1000).toLocaleString('fr-FR') + 'k';
+            if (value <= -1000) return (value / 1000).toLocaleString('fr-FR') + 'k';
+            return value;
+          }
+        } 
+      }
     }
   };
 
