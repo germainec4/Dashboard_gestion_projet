@@ -8,6 +8,7 @@ let missions = [];
 let collapsedGroups = new Set(); // Ex: "2024-Q4"
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  console.log("V1.5.2: Supabase client initializing...");
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
