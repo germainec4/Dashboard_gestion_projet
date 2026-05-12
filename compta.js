@@ -105,12 +105,12 @@ function renderKPIs() {
     }
   });
 
-  document.getElementById('kpi-ca').textContent = formatCurrency(caTotal);
-  document.getElementById('kpi-urssaf').textContent = formatCurrency(caTotal * URSSAF_RATE);
+  animateCounter('kpi-ca', caTotal);
+  animateCounter('kpi-urssaf', caTotal * URSSAF_RATE);
   const caApresAbattement = caTotal * IMPOT_ABATTEMENT;
   const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
-  document.getElementById('kpi-impots').textContent = formatCurrency(impots);
-  document.getElementById('kpi-reste').textContent = formatCurrency(resteARecevoir);
+  animateCounter('kpi-impots', impots);
+  animateCounter('kpi-reste', resteARecevoir);
 
   // Mettre à jour le label du bouton
   const label = document.getElementById('multiSelectLabel');
@@ -411,6 +411,57 @@ function initEventListeners() {
 }
 
 // === UTILS ===
+function animateCounter(elementId, targetValue) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  const startValue = parseFloat(el.dataset.currentValue || 0);
+  if (startValue === targetValue) {
+    el.textContent = formatCurrency(targetValue);
+    return;
+  }
+  
+  el.dataset.currentValue = targetValue;
+  const duration = 800; // ms
+  const startTime = performance.now();
+  
+  const glitchChars = "0123456789X$@#&*";
+  
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Ease out expo for a "premium" feel
+    const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+    const currentValue = startValue + (targetValue - startValue) * easeProgress;
+    
+    if (progress < 1) {
+      let formatted = formatCurrency(currentValue);
+      
+      // Glitch effect: replace some numbers with random symbols
+      if (Math.random() > 0.1) {
+        el.classList.add('glitch-active');
+        formatted = formatted.split('').map(char => {
+          if (/[0-9]/.test(char) && Math.random() > 0.8) {
+            return glitchChars[Math.floor(Math.random() * glitchChars.length)];
+          }
+          return char;
+        }).join('');
+      } else {
+        el.classList.remove('glitch-active');
+      }
+      
+      el.textContent = formatted;
+      requestAnimationFrame(update);
+    } else {
+      el.classList.remove('glitch-active');
+      el.textContent = formatCurrency(targetValue);
+    }
+  }
+  
+  requestAnimationFrame(update);
+}
+
 function formatCurrency(amount) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 }
