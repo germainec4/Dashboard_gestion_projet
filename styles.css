@@ -360,6 +360,8 @@ textarea:focus {
 }
 
 .tab-button {
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
   border: 0;
   border-bottom: 1px solid transparent;
@@ -367,6 +369,7 @@ textarea:focus {
   color: var(--muted);
   padding: 0 14px;
   font-weight: 600;
+  text-decoration: none;
 }
 
 .tab-button.active {
