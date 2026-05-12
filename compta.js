@@ -16,7 +16,17 @@ let chartGoals = null;
 let quarterlyGoals = JSON.parse(localStorage.getItem('quarterlyGoals') || '{}');
 // Default goals if empty
 if (Object.keys(quarterlyGoals).length === 0) {
-  quarterlyGoals = { '2024-Q1': 10000, '2024-Q2': 10000, '2024-Q3': 10000, '2024-Q4': 10000, '2025-Q1': 12000, '2025-Q2': 12000, '2026-Q2': 15000 };
+  quarterlyGoals = { 
+    '2024-Q4': 12000, 
+    '2025-Q1': 8000, 
+    '2025-Q2': 10000, 
+    '2025-Q3': 8500, 
+    '2025-Q4': 12000,
+    '2026-Q1': 12000,
+    '2026-Q2': 8000,
+    '2026-Q3': 10000,
+    '2026-Q4': 8500
+  };
 }
 
 // === CONSTANTES & CONFIG ===
