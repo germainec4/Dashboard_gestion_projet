@@ -527,9 +527,8 @@ function initCharts() {
         ticks: { 
           color: '#666',
           callback: function(value) {
-            if (value >= 1000) return (value / 1000).toLocaleString('fr-FR') + 'k';
-            if (value <= -1000) return (value / 1000).toLocaleString('fr-FR') + 'k';
-            return value;
+            if (value % 1000 === 0) return (value / 1000) + 'k';
+            return null;
           }
         } 
       }
@@ -610,7 +609,7 @@ function updateCharts(filteredMissions) {
         pointRadius: 2
       },
       {
-        label: 'Objectif CA',
+        label: 'Objectif',
         data: evolutionGoals,
         borderColor: 'rgba(229, 62, 62, 0.7)',
         borderDash: [2, 2],
@@ -620,7 +619,7 @@ function updateCharts(filteredMissions) {
         fill: false
       },
       {
-        label: 'Salaire Net (70%)',
+        label: 'Net',
         data: evolutionNet,
         borderColor: 'rgba(255, 255, 255, 0.2)',
         borderDash: [5, 5],
