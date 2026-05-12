@@ -5,6 +5,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let supabase = null;
 let missions = [];
+let collapsedGroups = new Set(); // Ex: "2024-Q4"
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -94,35 +95,86 @@ function renderKPIs() {
 }
 
 function renderTable() {
-  const tbody = document.getElementById('missionsTableBody');
-  tbody.innerHTML = '';
+  const container = document.getElementById('missionsTableBody');
+  container.innerHTML = '';
 
+  if (missions.length === 0) {
+    container.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 2rem; color: var(--text-muted)">Aucune mission trouvée</td></tr>';
+    return;
+  }
+
+  // 1. Groupement des missions
+  const groups = {};
   missions.forEach(m => {
-    // Alert logic: If terminee and more than 30 days since validation, but not paid -> red text for price
-    let isLate = false;
-    if (m.status === 'terminee' && m.date_validation) {
-        const valDate = new Date(m.date_validation);
-        const diffDays = (new Date() - valDate) / (1000 * 60 * 60 * 24);
-        if (diffDays > 30) isLate = true;
-    }
+    const date = m.date_validation ? new Date(m.date_validation) : new Date(m.created_at);
+    const year = date.getFullYear();
+    const quarter = Math.floor(date.getMonth() / 3) + 1;
+    const key = `${year}-Q${quarter}`;
+    
+    if (!groups[key]) groups[key] = { year, quarter, items: [], total: 0 };
+    groups[key].items.push(m);
+    groups[key].total += parseFloat(m.price) || 0;
+  });
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${escapeHTML(m.title)}</strong></td>
-      <td>${escapeHTML(m.client || '')}</td>
-      <td>${escapeHTML(m.entity || '')}</td>
-      <td>${m.quote_accepted ? '✅' : (m.quote_sent ? 'Envoyé' : '❌')}</td>
-      <td class="${isLate ? 'late-payment' : ''}">${formatCurrency(m.price)} ${isLate ? '🚨' : ''}</td>
-      <td style="color:var(--text-muted)">${m.debours > 0 ? formatCurrency(m.debours) : '-'}</td>
-      <td>${m.date_validation ? new Date(m.date_validation).toLocaleDateString('fr-FR') : '-'}</td>
-      <td>${m.date_payment ? new Date(m.date_payment).toLocaleDateString('fr-FR') : '-'}</td>
-      <td><span class="status-badge status-${m.status}">${STATUS_LABELS[m.status]}</span></td>
-      <td>
-        <button class="icon-button edit-btn" data-id="${m.id}" title="Éditer">✏️</button>
-        <button class="icon-button delete-btn" data-id="${m.id}" title="Supprimer">🗑️</button>
+  // 2. Tri des groupes par date décroissante
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  sortedKeys.forEach(key => {
+    const group = groups[key];
+    const isCollapsed = collapsedGroups.has(key);
+    
+    // Header de groupe
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'group-header';
+    headerRow.style.cursor = 'pointer';
+    headerRow.style.background = 'var(--surface-2)';
+    headerRow.innerHTML = `
+      <td colspan="10" style="padding: 0.75rem 1rem; border-left: 4px solid var(--blue)">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+            ${isCollapsed ? '▶' : '▼'} ${group.year} — Trimestre ${group.quarter} 
+            <small style="font-weight: 400; color: var(--text-muted); margin-left: 1rem;">(${group.items.length} missions)</small>
+          </span>
+          <span style="font-weight: 600; color: var(--blue)">Total : ${formatCurrency(group.total)}</span>
+        </div>
       </td>
     `;
-    tbody.appendChild(tr);
+    headerRow.onclick = () => {
+      if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+      else collapsedGroups.add(key);
+      renderTable();
+    };
+    container.appendChild(headerRow);
+
+    // Missions du groupe
+    if (!isCollapsed) {
+      group.items.forEach(m => {
+        let isLate = false;
+        if (m.status === 'terminee' && m.date_validation) {
+            const valDate = new Date(m.date_validation);
+            const diffDays = (new Date() - valDate) / (1000 * 60 * 60 * 24);
+            if (diffDays > 30) isLate = true;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${escapeHTML(m.title)}</strong></td>
+          <td>${escapeHTML(m.client || '')}</td>
+          <td>${escapeHTML(m.entity || '')}</td>
+          <td>${m.quote_accepted ? '✅' : (m.quote_sent ? 'Envoyé' : '❌')}</td>
+          <td class="${isLate ? 'late-payment' : ''}">${formatCurrency(m.price)} ${isLate ? '🚨' : ''}</td>
+          <td style="color:var(--text-muted)">${m.debours > 0 ? formatCurrency(m.debours) : '-'}</td>
+          <td>${m.date_validation ? new Date(m.date_validation).toLocaleDateString('fr-FR') : '-'}</td>
+          <td>${m.date_payment ? new Date(m.date_payment).toLocaleDateString('fr-FR') : '-'}</td>
+          <td><span class="status-badge status-${m.status}">${STATUS_LABELS[m.status]}</span></td>
+          <td>
+            <button class="icon-button edit-btn" data-id="${m.id}" title="Éditer">✏️</button>
+            <button class="icon-button delete-btn" data-id="${m.id}" title="Supprimer">🗑️</button>
+          </td>
+        `;
+        container.appendChild(tr);
+      });
+    }
   });
 }
 
