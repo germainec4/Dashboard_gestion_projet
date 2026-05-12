@@ -422,39 +422,31 @@ function animateCounter(elementId, targetValue) {
   }
   
   el.dataset.currentValue = targetValue;
-  const duration = 800; // ms
+  const duration = 1000; // 1 seconde
   const startTime = performance.now();
-  
-  const glitchChars = "0123456789X$@#&*";
   
   function update(currentTime) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
     
-    // Ease out expo for a "premium" feel
+    // Easing smooth
     const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
     const currentValue = startValue + (targetValue - startValue) * easeProgress;
     
     if (progress < 1) {
       let formatted = formatCurrency(currentValue);
       
-      // Glitch effect: replace some numbers with random symbols
-      if (Math.random() > 0.1) {
-        el.classList.add('glitch-active');
-        formatted = formatted.split('').map(char => {
-          if (/[0-9]/.test(char) && Math.random() > 0.8) {
-            return glitchChars[Math.floor(Math.random() * glitchChars.length)];
-          }
-          return char;
-        }).join('');
-      } else {
-        el.classList.remove('glitch-active');
-      }
+      // On fait défiler des chiffres aléatoires pour l'effet "roulette"
+      formatted = formatted.split('').map(char => {
+        if (/[0-9]/.test(char) && Math.random() > 0.5) {
+          return Math.floor(Math.random() * 10).toString();
+        }
+        return char;
+      }).join('');
       
       el.textContent = formatted;
       requestAnimationFrame(update);
     } else {
-      el.classList.remove('glitch-active');
       el.textContent = formatCurrency(targetValue);
     }
   }

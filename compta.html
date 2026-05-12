@@ -147,23 +147,6 @@
         color: var(--danger);
         border-color: var(--danger);
       }
-
-      /* Glitch Animation */
-      .glitch-active {
-        display: inline-block;
-        animation: glitch-jitter 0.15s infinite;
-        text-shadow: 2px 0 var(--blue), -2px 0 var(--danger);
-        opacity: 0.8;
-      }
-
-      @keyframes glitch-jitter {
-        0% { transform: translate(0); }
-        20% { transform: translate(-2px, 1px); }
-        40% { transform: translate(-2px, -1px); }
-        60% { transform: translate(2px, 1px); }
-        80% { transform: translate(2px, -1px); }
-        100% { transform: translate(0); }
-      }
     </style>
   </head>
   <body>
