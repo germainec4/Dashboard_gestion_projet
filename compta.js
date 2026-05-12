@@ -76,42 +76,84 @@ function getQuarterKey(date) {
 
 // === RENDU UI ===
 function renderAll() {
+  populateKPIFilter();
   renderKPIs();
   renderTable();
 }
 
 function renderKPIs() {
+  const filterVal = document.getElementById('kpiQuarterFilter').value;
+  
   let caTotal = 0;
-  let caQuarterPaye = 0;
   let resteARecevoir = 0;
-
-  const now = new Date();
-  const currentQuarter = Math.floor(now.getMonth() / 3);
-  const currentYear = now.getFullYear();
 
   missions.forEach(m => {
     const price = cleanPrice(m.price);
-    caTotal += price;
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    const qKey = dateObj ? getQuarterKey(dateObj) : null;
 
-    if (m.status !== 'payee') {
-      resteARecevoir += price;
-    } else if (m.status === 'payee' && m.date_payment) {
-      const pDate = parseSafeDate(m.date_payment);
-      if (pDate.getFullYear() === currentYear && Math.floor(pDate.getMonth() / 3) === currentQuarter) {
-        caQuarterPaye += price;
+    // Logique de filtrage
+    const isMatch = (filterVal === 'all') || (qKey === filterVal);
+
+    if (isMatch) {
+      if (m.status === 'payee') {
+        caTotal += price;
+      } else {
+        resteARecevoir += price;
       }
     }
   });
 
-  const urssafEstime = caQuarterPaye * URSSAF_RATE;
-  
-  const revenuImposable = caTotal * IMPOT_ABATTEMENT;
-  const impotsEstimes = revenuImposable > IMPOT_SEUIL ? (revenuImposable - IMPOT_SEUIL) * IMPOT_TAUX : 0;
+  // Calculs taxes
+  const urssaf = caTotal * URSSAF_RATE;
+  const caApresAbattement = caTotal * IMPOT_ABATTEMENT;
+  const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
 
   document.getElementById('kpi-ca').textContent = formatCurrency(caTotal);
-  document.getElementById('kpi-urssaf').textContent = formatCurrency(urssafEstime);
-  document.getElementById('kpi-impots').textContent = formatCurrency(impotsEstimes);
+  document.getElementById('kpi-urssaf').textContent = formatCurrency(urssaf);
+  document.getElementById('kpi-impots').textContent = formatCurrency(impots);
   document.getElementById('kpi-reste').textContent = formatCurrency(resteARecevoir);
+}
+
+function populateKPIFilter() {
+  const select = document.getElementById('kpiQuarterFilter');
+  if (!select) return;
+
+  // Sauvegarder la valeur actuelle si elle existe
+  const currentVal = select.value;
+  
+  // Vider sauf "Tout"
+  select.innerHTML = '<option value="all">Tout l\'historique</option>';
+
+  const quarters = new Set();
+  missions.forEach(m => {
+    const dateToUse = m.date_payment || m.date_validation || '';
+    const dateObj = parseSafeDate(dateToUse);
+    if (dateObj) {
+      quarters.add(getQuarterKey(dateObj));
+    }
+  });
+
+  const sortedQuarters = Array.from(quarters).sort().reverse();
+  
+  const now = new Date();
+  const currentQKey = getQuarterKey(now);
+
+  sortedQuarters.forEach(q => {
+    const option = document.createElement('option');
+    option.value = q;
+    const [year, qNum] = q.split('-Q');
+    option.textContent = `${year} — Trimestre ${qNum}`;
+    select.appendChild(option);
+  });
+
+  // Par défaut au trimestre actuel s'il existe dans les données, sinon garder le précédent ou "all"
+  if (currentVal && currentVal !== 'all') {
+    select.value = currentVal;
+  } else if (quarters.has(currentQKey)) {
+    select.value = currentQKey;
+  }
 }
 
 function renderTable() {
@@ -227,6 +269,8 @@ function renderTable() {
 
 // === ACTIONS & EVENTS ===
 function initEventListeners() {
+  document.getElementById('kpiQuarterFilter').addEventListener('change', renderKPIs);
+  
   document.getElementById('addMissionBtn').addEventListener('click', () => {
     document.getElementById('missionForm').reset();
     document.getElementById('missionId').value = "";

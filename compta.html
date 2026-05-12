@@ -172,22 +172,32 @@
       </style>
 
       <main class="compta-dashboard">
+        <div class="section-header-row" style="margin-bottom: 1.5rem;">
+          <div>
+            <p class="section-kicker">Performance financière</p>
+            <h2>Indicateurs</h2>
+          </div>
+          <select id="kpiQuarterFilter" class="control-select" style="width: auto; min-width: 200px;">
+            <option value="all">Tout l'historique</option>
+          </select>
+        </div>
+
         <!-- KPIs -->
         <section class="metrics-grid">
           <div class="metric-card">
-            <p>Chiffre d'Affaires Total</p>
+            <p>Chiffre d'Affaires</p>
             <h3 id="kpi-ca">0,00 €</h3>
           </div>
           <div class="metric-card" style="border-top: 3px solid #e53e3e;">
-            <p>URSSAF Estimé (Trimestre en cours)</p>
+            <p>URSSAF Estimé</p>
             <h3 id="kpi-urssaf">0,00 €</h3>
           </div>
           <div class="metric-card" style="border-top: 3px solid #e53e3e;">
-            <p>Impôts Estimés (Année)</p>
+            <p>Impôts Estimés</p>
             <h3 id="kpi-impots">0,00 €</h3>
           </div>
           <div class="metric-card" style="border-top: 3px solid #319795;">
-            <p>Reste à recevoir</p>
+            <p>Paiements en attente</p>
             <h3 id="kpi-reste">0,00 €</h3>
           </div>
         </section>
