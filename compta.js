@@ -57,7 +57,6 @@ async function loadData() {
 function renderAll() {
   renderKPIs();
   renderTable();
-  renderCharts();
 }
 
 function renderKPIs() {
@@ -127,67 +126,6 @@ function renderTable() {
   });
 }
 
-// === CHARTS ===
-let chartCA = null;
-let chartPerf = null;
-
-function renderCharts() {
-  const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-  const caByMonth = new Array(12).fill(0);
-  const currentYear = new Date().getFullYear();
-
-  missions.forEach(m => {
-    if (m.date_validation) {
-      const d = new Date(m.date_validation);
-      if (d.getFullYear() === currentYear) {
-        caByMonth[d.getMonth()] += parseFloat(m.price) || 0;
-      }
-    }
-  });
-
-  const ctxCA = document.getElementById('caEvolutionChart').getContext('2d');
-  if (chartCA) chartCA.destroy();
-  chartCA = new Chart(ctxCA, {
-    type: 'line',
-    data: {
-      labels: months,
-      datasets: [{
-        label: 'CA Réalisé',
-        data: caByMonth,
-        borderColor: '#3182ce',
-        backgroundColor: 'rgba(49, 130, 206, 0.1)',
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-
-  const quarters = [0, 0, 0, 0];
-  missions.forEach(m => {
-    if (m.date_validation) {
-      const d = new Date(m.date_validation);
-      if (d.getFullYear() === currentYear) {
-        quarters[Math.floor(d.getMonth() / 3)] += parseFloat(m.price) || 0;
-      }
-    }
-  });
-
-  const ctxPerf = document.getElementById('perfGoalChart').getContext('2d');
-  if (chartPerf) chartPerf.destroy();
-  chartPerf = new Chart(ctxPerf, {
-    type: 'bar',
-    data: {
-      labels: ["Q1", "Q2", "Q3", "Q4"],
-      datasets: [{
-        label: 'CA Réalisé',
-        data: quarters,
-        backgroundColor: '#48bb78',
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-}
 
 
 // === ACTIONS & EVENTS ===
