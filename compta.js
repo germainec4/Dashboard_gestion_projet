@@ -489,27 +489,34 @@ function initEventListeners() {
 
 function renderGoalsInputs() {
   const container = document.getElementById('goalsInputsContainer');
+  if (!container) return;
+  
   container.innerHTML = '';
   
-  // On récupère tous les trimestres présents dans les missions + ceux déjà définis dans les objectifs
-  const quarters = new Set(Object.keys(quarterlyGoals));
-  missions.forEach(m => {
-    const dateToUse = m.date_payment || m.date_validation || '';
-    const dateObj = parseSafeDate(dateToUse);
-    if (dateObj) quarters.add(getQuarterKey(dateObj));
-  });
-
-  const sortedQuarters = Array.from(quarters).sort().reverse();
+  const now = new Date();
+  const currentYear = now.getFullYear();
   
-  sortedQuarters.forEach(q => {
-    const val = quarterlyGoals[q] || 0;
-    const row = document.createElement('div');
-    row.className = 'goal-input-row';
-    row.innerHTML = `
-      <label>${q.replace('-Q', ' — T')}</label>
-      <input type="number" class="goal-input" data-quarter="${q}" value="${val}" step="100">
+  // Générer la liste des trimestres de 2024 jusqu'à l'année prochaine (pour planning)
+  const quartersToShow = [];
+  for (let y = currentYear + 1; y >= 2024; y--) {
+    for (let q = 4; q >= 1; q--) {
+      // Optionnel : on peut limiter à 2024-Q4 si c'est le début réel
+      if (y === 2024 && q < 4) continue;
+      quartersToShow.push(`${y}-Q${q}`);
+    }
+  }
+  
+  quartersToShow.forEach(key => {
+    const value = quarterlyGoals[key] || 0;
+    const [year, q] = key.split('-');
+    
+    const div = document.createElement('div');
+    div.className = 'goal-input-group';
+    div.innerHTML = `
+      <label>${year} — ${q.replace('Q', 'T')}</label>
+      <input type="number" class="goal-input" value="${value}" data-quarter="${key}" placeholder="0">
     `;
-    container.appendChild(row);
+    container.appendChild(div);
   });
 }
 
