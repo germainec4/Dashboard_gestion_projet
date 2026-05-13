@@ -91,17 +91,25 @@ Deno.serve(async (req) => {
     const { transactions } = await qontoRes.json()
     console.log(`Transactions Qonto récupérées: ${transactions.length}`)
 
-    // 5. Récupérer les missions non payées depuis Supabase
+    // 5. Récupérer les missions non payées ET les IDs Qonto déjà utilisés
     const { data: pendingMissions, error: fetchError } = await supabase
       .from('missions')
       .select('*')
       .neq('status', 'payee')
 
-    if (fetchError) {
-      console.error('Erreur Supabase Fetch:', fetchError)
-      throw fetchError
+    const { data: matchedIds, error: idsError } = await supabase
+      .from('missions')
+      .select('qonto_id')
+      .not('qonto_id', 'is', null)
+
+    if (fetchError || idsError) {
+      console.error('Erreur Supabase Fetch:', fetchError || idsError)
+      throw fetchError || idsError
     }
+
+    const usedQontoIds = new Set(matchedIds.map(m => m.qonto_id))
     console.log(`Missions en attente: ${pendingMissions?.length ?? 0}`)
+    console.log(`IDs Qonto déjà utilisés: ${usedQontoIds.size}`)
 
     const updates = []
     const results = { matched: 0, processed: transactions.length }
@@ -111,6 +119,12 @@ Deno.serve(async (req) => {
       const qontoAmount = parseFloat(tx.amount.toString())
       const txDate = tx.settled_at.split('T')[0]
       const txId = tx.transaction_id
+
+      // SÉCURITÉ : Si ce virement a déjà été utilisé pour une mission, on l'ignore
+      if (usedQontoIds.has(txId)) {
+        console.log(`Transaction ${txId} déjà traitée par le passé. Skip.`)
+        continue
+      }
       
       // On combine Label et Référence pour avoir le maximum d'infos (ex: "Malt" + "Facture #123")
       const fullLabel = `${tx.label} ${tx.reference || ''}`.trim()
