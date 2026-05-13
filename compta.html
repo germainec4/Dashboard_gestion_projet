@@ -568,6 +568,7 @@
               <thead>
                 <tr>
                   <th>Tâche</th>
+                  <th>Réf</th>
                   <th>Client</th>
                   <th>Entité</th>
                   <th>Devis OK</th>
@@ -610,10 +611,16 @@
         </div>
         <input id="missionId" type="hidden" />
         
-        <label>
-          Nom de la mission
-          <input id="missionTitle" type="text" required />
-        </label>
+        <div class="task-edit-grid">
+          <label>
+            Nom de la mission
+            <input id="missionTitle" type="text" required />
+          </label>
+          <label>
+            Réf. Externe (Malt, Facture...)
+            <input id="missionExternalRef" type="text" placeholder="Ex: Malt-12345" />
+          </label>
+        </div>
         
         <div class="task-edit-grid">
           <label>

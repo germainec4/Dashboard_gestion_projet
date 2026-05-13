@@ -32,7 +32,7 @@ async function initAuth() {
 function handleAuthStateChange(session) {
   userSession = session;
   const overlay = document.querySelector("#authOverlay");
-  
+
   if (session) {
     overlay.classList.add("hidden");
     console.log("Utilisateur connecté:", session.user.email);
@@ -103,7 +103,7 @@ let currentView = "cockpit";
 async function loadState() {
   console.log("Démarrage du chargement de l'état...");
   const localData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  
+
   if (!supabase) {
     console.warn("Supabase non configuré. Utilisation du mode local.");
     return { ...seedState, ...localData };
@@ -119,7 +119,7 @@ async function loadState() {
       fetchWithTimeout(supabase.from('projects').select('*')),
       fetchWithTimeout(supabase.from('tasks').select('*'))
     ]);
-    
+
     if (pRes.error || tRes.error) {
       console.error("Erreur de récupération Supabase:", pRes.error || tRes.error);
       return { ...seedState, ...localData };
@@ -387,7 +387,7 @@ function renderTaskSections() {
   const contextTasks = state.tasks.filter(isInDeepWorkContext);
   renderList("#focusList", contextTasks.filter(t => t.status === "focus"), "Aucune priorité jour.");
   renderList("#inboxList", contextTasks.filter(t => t.status === "inbox"), "Inbox vide.");
-  
+
   const operationalTasks = contextTasks.filter(t => {
     const pMatch = state.filters.pillar === "all" || t.pillar === state.filters.pillar;
     const sMatch = state.filters.status === "all" || t.status === state.filters.status;
@@ -547,7 +547,7 @@ function renderGantt() {
     const pEnd = p.dueDate ? new Date(p.dueDate) : new Date(pStart.getTime() + 14 * 86400000);
     const left = Math.max(0, ((pStart - startRange) / (endRange - startRange)) * 100);
     const width = Math.max(5, ((pEnd - pStart) / (endRange - startRange)) * 100);
-    
+
     return `
       <div class="gantt-row">
         <div class="gantt-project-name">${escapeHTML(p.name)}</div>
@@ -602,7 +602,7 @@ function openProjectDetail(id) {
   document.querySelector("#detailPillar").textContent = pillar.label;
   document.querySelector("#detailTitle").textContent = project.name;
   document.querySelector("#detailDoneDefinition").textContent = project.doneDefinition || "";
-  
+
   renderProjectTasks(id);
   dialog.showModal();
 }
@@ -642,8 +642,8 @@ function initEventListeners() {
     const pillar = document.querySelector("#quickPillar").value;
     const projectId = document.querySelector("#quickProject").value;
     if (id) {
-      await updateTask(id, { 
-        title, pillar, projectId, 
+      await updateTask(id, {
+        title, pillar, projectId,
         status: document.querySelector("#quickStatus").value,
         description: document.querySelector("#quickDescription").value,
         dueDate: document.querySelector("#quickDueDate").value
@@ -694,14 +694,14 @@ function initEventListeners() {
   safeListen("#editProjectButton", "click", () => {
     const project = projectById(selectedProjectId);
     if (!project) return;
-    
+
     document.querySelector("#editingProjectId").value = project.id;
     document.querySelector("#projectNameInput").value = project.name;
     document.querySelector("#projectPillarInput").value = project.pillar;
     document.querySelector("#projectDoneInput").value = project.doneDefinition || "";
     document.querySelector("#projectStartInput").value = project.startDate || "";
     document.querySelector("#projectDueInput").value = project.dueDate || "";
-    
+
     document.querySelector("#projectDialog h2").textContent = "Modifier le projet";
     document.querySelector("#projectDialog").showModal();
   });
@@ -713,7 +713,7 @@ function initEventListeners() {
     }
   });
 
-  safeListen("#archiveWeekButton", "click", () => { 
+  safeListen("#archiveWeekButton", "click", () => {
     if (confirm("Archiver les tâches terminées ?")) {
       state.tasks = state.tasks.filter(t => t.status !== "done");
       persistAndRender();
@@ -826,7 +826,7 @@ function initDragAndDrop() {
 
       const taskId = draggingCard.dataset.taskId;
       const nextStatus = lane.dataset.laneId;
-      
+
       if (nextStatus) {
         setTaskStatus(taskId, nextStatus);
       }

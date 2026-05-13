@@ -241,7 +241,7 @@ function renderTable() {
   container.innerHTML = '';
 
   if (missions.length === 0) {
-    container.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 2rem; color: var(--text-muted)">Aucune mission trouvée</td></tr>';
+    container.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-muted)">Aucune mission trouvée</td></tr>';
     return;
   }
 
@@ -289,7 +289,7 @@ function renderTable() {
     headerRow.style.cursor = 'pointer';
     headerRow.style.background = 'var(--surface-2)';
     headerRow.innerHTML = `
-      <td colspan="10" style="padding: 0.75rem 1rem; border-left: 4px solid var(--blue)">
+      <td colspan="11" style="padding: 0.75rem 1rem; border-left: 4px solid var(--blue)">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
             ${isCollapsed ? '▶' : '▼'} ${group.year} — Trimestre ${group.quarter} 
@@ -322,6 +322,7 @@ function renderTable() {
         tr.dataset.id = m.id;
         tr.innerHTML = `
           <td class="col-task"><strong>${escapeHTML(m.title)}</strong></td>
+          <td><small style="color:var(--text-muted)">${escapeHTML(m.external_ref || '-')}</small></td>
           <td>${escapeHTML(m.client || '')}</td>
           <td>${escapeHTML(m.entity || '')}</td>
           <td>${m.quote_accepted ? '✅' : (m.quote_sent ? 'Envoyé' : '❌')}</td>
@@ -426,7 +427,8 @@ function initEventListeners() {
       status: document.getElementById('missionStatus').value,
       quote_sent: document.getElementById('missionQuoteSent').checked,
       quote_accepted: document.getElementById('missionQuoteAccepted').checked,
-      notes: document.getElementById('missionNotes').value
+      notes: document.getElementById('missionNotes').value,
+      external_ref: document.getElementById('missionExternalRef').value
     };
 
     // Auto update payee -> fill date if empty
@@ -476,6 +478,7 @@ function initEventListeners() {
         document.getElementById('missionQuoteSent').checked = m.quote_sent;
         document.getElementById('missionQuoteAccepted').checked = m.quote_accepted;
         document.getElementById('missionNotes').value = m.notes || "";
+        document.getElementById('missionExternalRef').value = m.external_ref || "";
         
         document.getElementById('missionDialogTitle').textContent = "Modifier la mission";
         document.getElementById('missionDialog').showModal();
