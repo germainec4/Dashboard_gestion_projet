@@ -139,8 +139,8 @@ Deno.serve(async (req) => {
           const client = (m.client || '').toLowerCase()
           const ref = (m.external_ref || '').toLowerCase()
           
-          // 1. Match direct par ID (si l'utilisateur a copié l'ID Qonto dans la Réf)
-          if (m.external_ref === txId) return true
+          // 1. Match direct par ID (si déjà lié auparavant ou via Réf)
+          if (m.qonto_id === txId || m.external_ref === txId) return true
           
           // 2. Match par texte dans le libellé/référence
           return (ref && searchString.includes(ref)) || 
