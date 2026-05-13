@@ -39,7 +39,7 @@ const monthlyGoals = {
 // === CONSTANTES & CONFIG ===
 const URSSAF_RATE = 0.2575;
 const IMPOT_ABATTEMENT = 0.66;
-const IMPOT_SEUIL = 11600;
+const IMPOT_SEUIL = 10777; // Seuil de la tranche à 11% (Barème 2023 utilisé par l'utilisateur)
 const IMPOT_TAUX = 0.11;
 
 const STATUS_LABELS = {
@@ -141,12 +141,12 @@ function renderKPIs() {
   animateCounter('kpi-urssaf', caTotal * URSSAF_RATE);
   
   const caApresAbattement = caTotal * IMPOT_ABATTEMENT;
-  const impots = caApresAbattement > IMPOT_SEUIL ? caApresAbattement * IMPOT_TAUX : 0;
+  const impots = Math.max(0, (caApresAbattement - IMPOT_SEUIL) * IMPOT_TAUX);
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
 
   // Animation du solde combiné au verso de la carte URSSAF
-  const paidImpots = paidTurnoverForTax > IMPOT_SEUIL ? paidTurnoverForTax * IMPOT_TAUX : 0;
+  const paidImpots = Math.max(0, (paidTurnoverForTax - IMPOT_SEUIL) * IMPOT_TAUX);
   animateCounter('soldeTotal', paidURSSAF + paidImpots);
 
   // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===

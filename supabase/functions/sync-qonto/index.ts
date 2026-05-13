@@ -156,9 +156,22 @@ Deno.serve(async (req) => {
           // 1. Match direct par ID (si déjà lié auparavant ou via Réf)
           if (m.qonto_id === txId || m.external_ref === txId) return true
           
-          // 2. Match par texte dans le libellé/référence
+        // 2. Match par texte intelligent (Mots-clés)
+          if (title) {
+            // On nettoie le titre pour extraire les mots significatifs
+            const keywords = title
+              .replace(/[:.,!?-]/g, ' ') // Enlever la ponctuation
+              .split(' ')
+              .filter(word => word.length > 3) // Garder les mots de plus de 3 lettres
+              .filter(word => !['test', 'mission', 'projet'].includes(word.toLowerCase())) // Ignorer les mots génériques
+            
+            // Si l'un des mots-clés du titre est dans le libellé Qonto
+            const hasKeywordMatch = keywords.some(word => searchString.includes(word.toLowerCase()))
+            if (hasKeywordMatch) return true
+          }
+
+          // 3. Match par client ou référence externe
           return (ref && searchString.includes(ref)) || 
-                 (title && searchString.includes(title)) || 
                  (client && searchString.includes(client))
         })
 
