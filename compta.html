@@ -190,11 +190,23 @@
 
       <style>
         .charts-section {
-          margin-bottom: 2rem;
-          display: none;
+          display: block !important;
+          margin-bottom: 0;
+          max-height: 0;
+          overflow: hidden;
+          opacity: 0;
+          visibility: hidden;
+          transform: translateY(-10px);
+          transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+          pointer-events: none;
         }
         .charts-section.show {
-          display: block;
+          max-height: 1000px;
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+          margin-bottom: 2rem;
+          pointer-events: auto;
         }
         .charts-grid {
           display: grid;
