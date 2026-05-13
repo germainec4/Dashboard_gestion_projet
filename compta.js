@@ -368,7 +368,10 @@ function initEventListeners() {
       try {
         const { data, error } = await supabase.functions.invoke('sync-qonto');
         
-        if (error) throw error;
+        if (error) {
+          console.error("Erreur retournée par la fonction:", error);
+          throw error;
+        }
         
         if (data.results.matched > 0) {
           showToast(`${data.results.matched} mission(s) marquée(s) comme payée(s) !`, "success");
@@ -377,7 +380,7 @@ function initEventListeners() {
           showToast("Aucun nouveau paiement détecté.", "info");
         }
       } catch (err) {
-        console.error("Erreur sync Qonto:", err);
+        console.error("Erreur complète sync Qonto:", err);
         showToast("Erreur lors de la synchronisation Qonto", "error");
       } finally {
         syncBtn.disabled = false;
