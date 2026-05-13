@@ -363,9 +363,9 @@ function initEventListeners() {
   if (syncBtn) {
     syncBtn.addEventListener('click', async () => {
       syncBtn.disabled = true;
-      syncBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg> Synchronisation...';
-      
       try {
+        syncBtn.innerHTML = '<svg class="icon rotating" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5 5v-5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5-5v5h-5"/></svg>';
+        
         const { data, error } = await supabase.functions.invoke('sync-qonto');
         
         if (error) {
@@ -384,7 +384,7 @@ function initEventListeners() {
         showToast("Erreur lors de la synchronisation Qonto", "error");
       } finally {
         syncBtn.disabled = false;
-        syncBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" style="stroke: white;"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5 5v-5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5-5v5h-5"/></svg> Synchroniser Qonto';
+        syncBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5 5v-5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5-5v5h-5"/></svg>';
       }
     });
   }

@@ -146,6 +146,33 @@
         width: 16px;
         height: 16px;
       }
+      
+      /* Animation pour l'icône de synchro */
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .rotating {
+        animation: spin 1s linear infinite;
+      }
+      .sync-btn-discrete {
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        opacity: 0.6;
+        border-radius: 4px;
+      }
+      .sync-btn-discrete:hover {
+        opacity: 1;
+        color: var(--text);
+        background: var(--surface-2);
+      }
     </style>
   </head>
   <body>
@@ -554,10 +581,9 @@
               <p class="section-kicker">Suivi des prestations</p>
               <h2>Liste des Missions</h2>
             </div>
-            <div style="display: flex; gap: 1rem;">
-              <button id="syncQontoBtn" class="button button-secondary" style="background: #515cf1; color: white; border: none;">
-                <svg class="icon" viewBox="0 0 24 24" style="stroke: white;"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5 5v-5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5-5v5h-5"/></svg>
-                Synchroniser Qonto
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <button id="syncQontoBtn" class="sync-btn-discrete" title="Synchroniser Qonto">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5 5v-5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5-5v5h-5"/></svg>
               </button>
               <button id="addMissionBtn" class="button button-primary">Nouvelle Mission</button>
             </div>
