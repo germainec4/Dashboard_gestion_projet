@@ -697,6 +697,18 @@ function updateEvolutionChart(filteredMissions) {
     chartEvolution.data.labels = evolutionLabels;
     chartEvolution.data.datasets = datasets;
     chartEvolution.update();
+
+    // Mise à jour de l'indicateur de net moyen
+    const avgNetEl = document.getElementById('avgNetMois');
+    if (avgNetEl) {
+      if (document.getElementById('toggleMonthlyGoal')?.checked && evolutionNet.length > 0) {
+        const avg = evolutionNet.reduce((a, b) => a + b, 0) / evolutionNet.length;
+        avgNetEl.textContent = `Net moyen : ${formatCurrency(avg)} / mois`;
+        avgNetEl.style.display = 'block';
+      } else {
+        avgNetEl.style.display = 'none';
+      }
+    }
   }
 }
 
