@@ -1,534 +1,558 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comptabilité - Dashboard Projets</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comptabilité - Germaine's corp</title>
+    <link rel="stylesheet" href="styles.css" />
     <style>
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            padding: 1.5rem;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-color);
-            transition: var(--transition-base);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .stat-trend {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-        }
-
-        .trend-up { color: var(--success); }
-        .trend-down { color: var(--danger); }
-
-        .quarter-section {
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-color);
-            margin-bottom: 2rem;
-            overflow: hidden;
-        }
-
-        .quarter-header {
-            padding: 1.25rem 1.5rem;
-            background: rgba(255, 255, 255, 0.02);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .quarter-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .quarter-stats {
-            display: flex;
-            gap: 2rem;
-            font-size: 0.875rem;
-        }
-
-        .compta-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .compta-table th {
-            text-align: left;
-            padding: 1rem 1.5rem;
-            background: rgba(255, 255, 255, 0.01);
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.875rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .compta-table td {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-size: 0.9375rem;
-        }
-
-        .mission-title {
-            font-weight: 500;
-            max-width: 300px;
-            white-space: normal;
-            word-wrap: break-word;
-            line-height: 1.4;
-        }
-
-        .status-badge {
-            padding: 0.375rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8125rem;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-        .status-paid { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .status-overdue { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
-        .price-col {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            width: 100%;
-            max-width: 500px;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-color);
-            padding: 2rem;
-            position: relative;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background: var(--bg-main);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            color: var(--text-primary);
-            font-family: inherit;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .button-group {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .button {
-            padding: 0.75rem 1.5rem;
-            border-radius: var(--radius-md);
-            font-weight: 500;
-            cursor: pointer;
-            transition: var(--transition-base);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .button-primary {
-            background: var(--primary);
-            color: white;
-            border: none;
-        }
-
-        .button-secondary {
-            background: transparent;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .button:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 4px;
-            transition: var(--transition-base);
-        }
-
-        .action-btn:hover {
-            color: var(--primary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .action-btn.delete:hover {
-            color: var(--danger);
-        }
-
-        /* Filter Tabs */
-        .filter-tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            background: var(--bg-card);
-            padding: 0.25rem;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-color);
-            width: fit-content;
-        }
-
-        .filter-tab {
-            padding: 0.5rem 1rem;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            transition: var(--transition-base);
-        }
-
-        .filter-tab.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .filter-tab:not(.active):hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-primary);
-        }
-
-        .quarter-multi-select {
-            margin-bottom: 2rem;
-        }
-
-        .multi-select-header {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.75rem;
-            font-weight: 500;
-        }
-
-        .multi-select-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-
-        .quarter-pill {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-
-        .quarter-pill:hover {
-            border-color: var(--primary-light);
-            background: rgba(81, 92, 241, 0.05);
-        }
-
-        .quarter-pill.selected {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-
-        .quarter-pill .checkbox {
-            width: 16px;
-            height: 16px;
-            border: 2px solid currentColor;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .quarter-pill.selected .checkbox {
-            background: white;
-            border-color: white;
-        }
-
-        .quarter-pill.selected .checkbox::after {
-            content: '✓';
-            color: var(--primary);
-            font-size: 10px;
-            font-weight: bold;
-        }
-
-        /* KPI Cards Styling */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.25rem;
-            margin-bottom: 2.5rem;
-        }
-
-        .kpi-card {
-            background: var(--bg-card);
-            padding: 1.5rem;
-            border-radius: 0; /* Strict square border */
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-            height: 160px; /* Fixed height for uniformity */
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .kpi-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-
-        .kpi-label {
-            color: var(--text-secondary);
-            font-size: 0.8125rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .kpi-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 0; /* Strict square icon background */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .kpi-value {
-            font-size: 1.75rem; /* Standardized value size */
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0.5rem 0;
-            line-height: 1.2;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .kpi-footer {
-            font-size: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.375rem;
-        }
-
-        .kpi-trend-up { color: #10b981; }
-        .kpi-trend-down { color: #ef4444; }
-
-        .kpi-progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            margin-top: 0.75rem;
-            border-radius: 0;
-        }
-
-        .kpi-progress-fill {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 0;
-        }
-
-        /* Objectives Section */
-        .objectives-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .settings-btn {
-            background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 0.5rem;
-            border-radius: 0;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .settings-btn:hover {
-            color: var(--primary);
-            border-color: var(--primary);
-            background: rgba(81, 92, 241, 0.05);
-        }
-
-        /* Modal Objectives */
-        .objectives-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.5rem;
-            margin-top: 1rem;
-        }
-
-        .objective-input-group {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 0;
-        }
-
-        /* Large Modal for Objectives */
-        .modal-large {
-            max-width: 800px !important;
-        }
-
-        .objective-field {
-            margin-bottom: 1rem;
-        }
-
-        .objective-field label {
-            display: block;
-            margin-bottom: 0.4rem;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-
-        .objective-field input {
-            width: 100%;
-            padding: 0.6rem;
-            background: var(--bg-main);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-        }
-
-        .objectives-intro {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-        }
+      .compta-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .topbar {
+        justify-content: space-between;
+        align-items: center;
+      }
+      .back-to-dashboard {
+        margin-left: auto !important;
+      }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+      .metric-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 0;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        height: 115px; /* Hauteur fixe pour l'alignement */
+      }
+      .metric-card p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0;
+      }
+      .metric-card h3 {
+        font-size: 1.8rem;
+        margin: 0;
+        color: var(--text);
+      }
+      .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      @media (max-width: 768px) {
+        .charts-grid { grid-template-columns: 1fr; }
+      }
+      .app-shell {
+        width: min(1800px, calc(100vw - 40px));
+      }
+      .table-container {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 0;
+        overflow-x: auto;
+      }
+      .missions-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        table-layout: auto;
+      }
+      .missions-table th, .missions-table td {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+      }
+      /* On garde les dates et prix sur une ligne, mais on permet aux titres de wrapper */
+      .missions-table td:not(.col-task) {
+        white-space: nowrap;
+      }
+      .col-task {
+        min-width: 250px;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.4;
+      }
+      .missions-table th {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+      .missions-table tbody tr:hover {
+        background: var(--bg);
+      }
+      .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+      .status-pas_commence { background: #333; color: #fff; }
+      .status-en_cours { background: #2b6cb0; color: #fff; }
+      .status-bloque { background: #c53030; color: #fff; }
+      .status-terminee { background: #dd6b20; color: #fff; }
+      .status-payee { background: #2f855a; color: #fff; }
+      
+      .group-header {
+        background: var(--surface-2);
+        cursor: pointer;
+      }
+      .group-header:hover {
+        background: var(--surface-3);
+      }
+      .mission-row:hover {
+        background: var(--surface-2);
+      }
+      .late-payment {
+        color: var(--danger);
+        font-weight: bold;
+      }
+      /* Style pour les icônes SVG */
+      .icon {
+        width: 18px;
+        height: 18px;
+        stroke-width: 2.5;
+        fill: none;
+        stroke: currentColor;
+      }
+      .missions-table .icon-button {
+        min-height: 32px;
+        width: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        background: transparent;
+        border: 1px solid transparent;
+      }
+      .missions-table .icon-button:hover {
+        background: var(--surface-3);
+        border-color: var(--border);
+        color: var(--white);
+      }
+      .missions-table .delete-btn:hover {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+      .missions-table .icon-button svg {
+        width: 16px;
+        height: 16px;
+      }
     </style>
-</head>
-<body>
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <div class="logo-icon"></div>
-                    <span>GestionPro</span>
-                </div>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="index.html" class="nav-item">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    Tableau de bord
-                </a>
-                <a href="compta.html" class="nav-item active">
-                    <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    Comptabilité
-                </a>
-            </nav>
-        </aside>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Finance & Suivi</p>
+          <h1>Comptabilité</h1>
+        </div>
+        <a href="index.html" class="button button-secondary back-to-dashboard">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Retour au Dashboard
+        </a>
+      </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-          <header class="page-header">
+      <style>
+        .charts-section {
+          margin-bottom: 2rem;
+          display: none;
+        }
+        .charts-section.show {
+          display: block;
+        }
+        .charts-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+        .chart-card {
+          background: #050505;
+          border: 1px solid var(--border);
+          border-radius: 0;
+          padding: 1.5rem;
+          position: relative;
+          height: 400px;
+          display: flex;
+          flex-direction: column;
+        }
+        .chart-container {
+          flex: 1;
+          position: relative;
+          min-height: 0; /* Important pour Chart.js dans un flex container */
+        }
+        .chart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+        .chart-card h3 {
+          font-size: 1.1rem;
+          margin: 0;
+          color: var(--text);
+        }
+        .switch-goal {
+          position: relative;
+          display: inline-block;
+          width: 32px;
+          height: 18px;
+        }
+        .switch-goal input { 
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #333;
+          transition: .3s;
+          border-radius: 34px;
+        }
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 12px;
+          width: 12px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: .3s;
+          border-radius: 50%;
+        }
+        .switch-goal input:checked + .slider {
+          background-color: #e53e3e;
+        }
+        .switch-goal input:checked + .slider:before {
+          transform: translateX(14px);
+        }
+        /* Flip Card URSSAF Only */
+        .metric-card-container {
+          height: 115px; /* Aligné sur les autres cartes */
+          position: relative;
+          cursor: pointer;
+          perspective: 1000px;
+          border-radius: 0;
+        }
+        .flip-card-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+          transform-style: preserve-3d;
+        }
+        .metric-card-container.flipped .flip-card-inner {
+          transform: rotateY(180deg);
+        }
+        .metric-card-front, .metric-card-back {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          border-radius: 0 !important;
+          padding: 1.5rem;
+          background: #050505;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .metric-card-front {
+          border-top: 3px solid #e53e3e;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .metric-card-front p { margin: 0; font-size: 0.9rem; color: #888; }
+        .metric-card-front h3 { margin: 5px 0 0; font-size: 1.8rem; }
+
+        .metric-card-back {
+          transform: rotateY(180deg);
+          background: linear-gradient(135deg, #1a0a0a 0%, #050505 100%);
+          border: 1px solid rgba(229, 62, 62, 0.2);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+        }
+        .metric-card-back h4 {
+          font-size: 0.7rem;
+          color: #e53e3e;
+          text-transform: uppercase;
+          margin: 0;
+          letter-spacing: 1px;
+        }
+        .metric-card-back .solde-total {
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #fff;
+          margin: 4px 0;
+        }
+        .metric-card-back .solde-desc {
+          font-size: 0.7rem;
+          color: rgba(255,255,255,0.4);
+        }
+
+        .flip-hint {
+          position: absolute;
+          bottom: 8px;
+          right: 12px;
+          font-size: 0.7rem;
+          color: rgba(255, 255, 255, 0.15);
+        }
+
+        .chart-toggle-btn {
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          opacity: 0.6;
+          font-size: 0.85rem;
+          transition: opacity 0.2s;
+          background: none;
+          border: none;
+          color: #fff;
+          cursor: pointer;
+        }
+        .chart-toggle-btn:hover {
+          opacity: 1;
+        }
+        .settings-btn {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          padding: 4px;
+          opacity: 0.3;
+          background: transparent;
+          border: none;
+          color: var(--text);
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .settings-btn:hover {
+          opacity: 1;
+        }
+        .goal-input-row {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        .goal-input-row label {
+          flex: 1;
+          font-size: 0.9rem;
+        }
+        .goal-input-row input {
+          width: 100px;
+          min-height: 32px;
+        }
+      </style>
+      <style>
+        .back-to-dashboard {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          text-decoration: none;
+        }
+        .multi-select {
+          position: relative;
+          min-width: 250px;
+        }
+        .multi-select-btn {
+          width: 100%;
+          min-height: 42px;
+          padding: 0 12px;
+          background: #050505;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--text);
+          text-align: left;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-weight: 600;
+        }
+        .multi-select-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          margin-top: 4px;
+          max-height: 300px;
+          overflow-y: auto;
+          z-index: 100;
+          display: none;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .multi-select-dropdown.show {
+          display: block;
+        }
+        .multi-select-option {
+          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+          font-size: 0.9rem;
+        }
+        .multi-select-option:hover {
+          background: var(--surface-3);
+        }
+        .multi-select-option input {
+          width: 16px;
+          height: 16px;
+          min-height: auto;
+          cursor: pointer;
+        }
+
+        /* Styles pour la modale des objectifs */
+        #goalsInputsContainer {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 1.2rem;
+          padding: 1.5rem;
+          margin-top: 1rem;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid var(--border);
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .goal-input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .goal-input-group label {
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          font-weight: 600;
+        }
+        .goal-input {
+          background: #000;
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 10px 12px;
+          color: var(--text);
+          font-size: 1rem;
+          font-weight: 700;
+          width: 100%;
+          transition: border-color 0.2s;
+        }
+        .goal-input:focus {
+          border-color: #e53e3e;
+          outline: none;
+        }
+      </style>
+
+      <main class="compta-dashboard">
+        <div class="section-header-row" style="margin-bottom: 1.5rem;">
+          <div>
+            <p class="section-kicker">Performance financière</p>
+            <h2>Indicateurs</h2>
+          </div>
+          <div class="multi-select" id="multiQuarterSelect">
+            <button class="multi-select-btn" type="button">
+              <span id="multiSelectLabel">Sélectionner les trimestres</span>
+              <svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="multi-select-dropdown" id="multiSelectDropdown">
+              <!-- Options injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <section class="metrics-grid">
+          <div class="metric-card">
+            <p>Chiffre d'Affaires</p>
+            <h3 id="kpi-ca">0,00 €</h3>
+          </div>
+
+          <div class="metric-card-container" onclick="this.classList.toggle('flipped')">
+            <div class="flip-card-inner">
+              <div class="metric-card-front">
+                <p>URSSAF Estimé</p>
+                <h3 id="kpi-urssaf">0,00 €</h3>
+                <span class="flip-hint">Détails ↺</span>
+              </div>
+              <div class="metric-card-back">
+                <h4>Solde Total à avoir</h4>
+                <p class="solde-total" id="soldeTotal">0,00 €</p>
+                <p class="solde-desc">URSSAF + Impôts (Missions payées)</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card" style="border-top: 3px solid #e53e3e;">
+            <p>Impôts Estimés</p>
+            <h3 id="kpi-impots">0,00 €</h3>
+          </div>
+
+          <div class="metric-card" style="border-top: 3px solid #319795;">
+            <p>Paiements en attente</p>
+            <h3 id="kpi-reste">0,00 €</h3>
+          </div>
+        </section>
+
+        <button id="toggleChartsBtn" class="button button-secondary chart-toggle-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17l-4-4-4 4-4-4"/></svg>
+          Afficher les graphiques
+        </button>
+
+        <section id="chartsSection" class="charts-section">
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>Évolution CA</h3>
+                <label class="switch-goal">
+                  <input type="checkbox" id="toggleMonthlyGoal">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="chart-container">
+                <canvas id="chartEvolution"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>Perf / Objectif</h3>
+                <button id="openGoalsBtn" class="settings-btn" title="Paramètres objectifs">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+              </div>
+              <div class="chart-container">
+                <canvas id="chartGoals"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Liste des missions -->
+        <section class="panel">
+          <div class="panel-header panel-header-row">
             <div>
-              <h1 class="page-title">Analyse Financière</h1>
-              <p class="text-secondary">Suivi des revenus et objectifs par trimestre</p>
+              <p class="section-kicker">Suivi des prestations</p>
+              <h2>Liste des Missions</h2>
             </div>
             <div style="display: flex; gap: 1rem;">
               <button id="syncQontoBtn" class="button button-secondary" style="background: #515cf1; color: white; border: none;">
@@ -537,178 +561,150 @@
               </button>
               <button id="addMissionBtn" class="button button-primary">Nouvelle Mission</button>
             </div>
-          </header>
-
-          <!-- Quarter Multi-Select -->
-          <div class="quarter-multi-select">
-            <div class="multi-select-header">Sélectionner les trimestres à analyser</div>
-            <div id="quarterPills" class="multi-select-container">
-              <!-- Dynamically populated pills -->
-            </div>
           </div>
-
-          <!-- KPI Grid -->
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-label">CA Facturé</span>
-                <div class="kpi-icon" style="background: rgba(81, 92, 241, 0.1); color: var(--primary);">
-                  <svg class="icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                </div>
-              </div>
-              <div id="kpiFacture" class="kpi-value counter" data-target="0">0 €</div>
-              <div class="kpi-footer">
-                <span id="kpiFactureTrend" class="kpi-trend-up">--</span>
-                <span class="text-secondary">vs objectif</span>
-              </div>
-              <div class="kpi-progress-bar">
-                <div id="kpiFactureProgress" class="kpi-progress-fill" style="width: 0%"></div>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-label">CA Encaissé</span>
-                <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
-                  <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              </div>
-              <div id="kpiEncaisse" class="kpi-value counter" data-target="0">0 €</div>
-              <div class="kpi-footer">
-                <span id="kpiEncaisseLabel" class="text-secondary">Total perçu</span>
-              </div>
-              <div class="kpi-progress-bar">
-                <div id="kpiEncaisseProgress" class="kpi-progress-fill" style="background: var(--success); width: 0%"></div>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-label">En Attente</span>
-                <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
-                  <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-              </div>
-              <div id="kpiAttente" class="kpi-value counter" data-target="0">0 €</div>
-              <div class="kpi-footer">
-                <span id="kpiAttenteCount" class="text-secondary">0 missions à régler</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-                <div class="kpi-header">
-                  <span class="kpi-label">Progression Annuelle</span>
-                  <div class="kpi-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                    <svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                  </div>
-                </div>
-                <div id="kpiAnnuel" class="kpi-value counter" data-target="0">0 €</div>
-                <div class="kpi-footer">
-                  <span id="kpiAnnuelLabel" class="text-secondary">Cumul annuel (Malt)</span>
-                </div>
-                <div class="kpi-progress-bar">
-                  <div id="kpiAnnuelProgress" class="kpi-progress-fill" style="background: #8b5cf6; width: 0%"></div>
-                </div>
-              </div>
+          
+          <div class="table-container">
+            <table class="missions-table">
+              <thead>
+                <tr>
+                  <th>Tâche</th>
+                  <th>Client</th>
+                  <th>Entité</th>
+                  <th>Devis OK</th>
+                  <th>Prix</th>
+                  <th>Débours</th>
+                  <th>Date Validation</th>
+                  <th>Date Paiement</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="missionsTableBody">
+                <!-- Les lignes seront générées par JS -->
+              </tbody>
+            </table>
           </div>
-
-          <div class="objectives-header">
-            <h2 class="section-title">Détail par Trimestre</h2>
-            <button id="openObjectivesBtn" class="settings-btn" title="Configurer les objectifs">
-              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Objectifs de performance
-            </button>
-          </div>
-
-          <div id="comptaContainer">
-            <!-- Trimestres générés par JS -->
-          </div>
-        </main>
-    </div>
-
-    <!-- Modal Mission -->
-    <div id="missionModal" class="modal">
-        <div class="modal-content">
-            <h2 id="modalTitle" style="margin-bottom: 1.5rem;">Nouvelle Mission</h2>
-            <form id="missionForm">
-                <input type="hidden" id="missionId">
-                <div class="form-group">
-                    <label>Titre de la mission</label>
-                    <input type="text" id="m_title" class="form-input" required placeholder="ex: Refonte site E-commerce">
-                </div>
-                <div class="form-group">
-                    <label>Client</label>
-                    <input type="text" id="m_client" class="form-input" required placeholder="Nom du client">
-                </div>
-                <div class="form-group">
-                    <label>Montant (Net reçu)</label>
-                    <input type="number" id="m_price" class="form-input" required step="0.01" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label>Date de facturation</label>
-                    <input type="date" id="m_date" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label>Statut</label>
-                    <select id="m_status" class="form-input">
-                        <option value="en_cours">En attente (Non payé)</option>
-                        <option value="payee">Payée</option>
-                    </select>
-                </div>
-                <div class="button-group">
-                    <button type="button" class="button button-secondary" id="closeModal">Annuler</button>
-                    <button type="submit" class="button button-primary">Enregistrer</button>
-                </div>
-            </form>
+        </section>
+      </main>
+      
+      <footer class="app-footer">
+        <div class="footer-content">
+          <p class="muted">© Germaine's corp — Comptabilité</p>
         </div>
+      </footer>
     </div>
 
-    <!-- Modal Objectives -->
-    <div id="objectivesModal" class="modal">
-        <div class="modal-content modal-large">
-            <h2 style="margin-bottom: 0.5rem;">Objectifs de Chiffre d'Affaires</h2>
-            <p class="objectives-intro">Définissez vos objectifs de CA pour chaque trimestre afin de suivre votre progression en temps réel.</p>
-            
-            <form id="objectivesForm">
-                <div class="objectives-grid">
-                    <div class="objective-input-group">
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Trimestre 1 (Jan-Mar)</h4>
-                        <div class="objective-field">
-                            <label>Objectif de CA (€)</label>
-                            <input type="number" id="obj_q1" class="form-input" placeholder="ex: 15000">
-                        </div>
-                    </div>
-                    <div class="objective-input-group">
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Trimestre 2 (Avr-Juin)</h4>
-                        <div class="objective-field">
-                            <label>Objectif de CA (€)</label>
-                            <input type="number" id="obj_q2" class="form-input" placeholder="ex: 15000">
-                        </div>
-                    </div>
-                    <div class="objective-input-group">
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Trimestre 3 (Juil-Sept)</h4>
-                        <div class="objective-field">
-                            <label>Objectif de CA (€)</label>
-                            <input type="number" id="obj_q3" class="form-input" placeholder="ex: 15000">
-                        </div>
-                    </div>
-                    <div class="objective-input-group">
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Trimestre 4 (Oct-Déc)</h4>
-                        <div class="objective-field">
-                            <label>Objectif de CA (€)</label>
-                            <input type="number" id="obj_q4" class="form-input" placeholder="ex: 15000">
-                        </div>
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button type="button" class="button button-secondary" id="closeObjectivesModal">Fermer</button>
-                    <button type="submit" class="button button-primary">Sauvegarder les objectifs</button>
-                </div>
-            </form>
+    <!-- Modale Ajout/Edition Mission -->
+    <dialog id="missionDialog" class="dialog task-dialog">
+      <form id="missionForm" class="dialog-content quick-add-form">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Édition</p>
+            <h2 id="missionDialogTitle">Nouvelle Mission</h2>
+          </div>
         </div>
-    </div>
+        <div class="dialog-top-actions">
+          <button id="closeMissionDialog" class="icon-button" type="button" aria-label="Fermer">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <input id="missionId" type="hidden" />
+        
+        <label>
+          Nom de la mission
+          <input id="missionTitle" type="text" required />
+        </label>
+        
+        <div class="task-edit-grid">
+          <label>
+            Client
+            <input id="missionClient" type="text" required />
+          </label>
+          <label>
+            Entité
+            <input id="missionEntity" type="text" />
+          </label>
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="compta.js"></script>
-</body>
+        <label>
+          Contact (Email/Tel)
+          <input id="missionContact" type="text" />
+        </label>
+        
+        <div class="task-edit-grid">
+          <label>
+            Prix (CA)
+            <input id="missionPrice" type="number" step="0.01" required />
+          </label>
+          <label>
+            Débours (Optionnel)
+            <input id="missionDebours" type="number" step="0.01" />
+          </label>
+        </div>
+
+        <div class="task-edit-grid">
+          <label>
+            Date Validation (Devis)
+            <input id="missionDateValidation" type="date" />
+          </label>
+          <label>
+            Date Paiement
+            <input id="missionDatePayment" type="date" />
+          </label>
+        </div>
+
+        <div class="task-edit-grid">
+          <label>
+            Statut
+            <select id="missionStatus" required>
+              <option value="pas_commence">Pas commencé</option>
+              <option value="en_cours">En cours</option>
+              <option value="bloque">Bloqué</option>
+              <option value="terminee">Terminée</option>
+              <option value="payee">Payée</option>
+            </select>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+            <input id="missionQuoteSent" type="checkbox" /> Devis envoyé ?
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+            <input id="missionQuoteAccepted" type="checkbox" /> Devis accepté ?
+          </label>
+        </div>
+
+        <label>
+          Notes
+          <textarea id="missionNotes" rows="2"></textarea>
+        </label>
+
+        <button class="button button-primary" type="submit">Enregistrer</button>
+      </form>
+    </dialog>
+
+    <dialog id="goalsDialog" class="dialog">
+      <div class="dialog-content" style="max-width: 800px; width: 90vw;">
+        <div class="dialog-header">
+          <div>
+            <p class="section-kicker">Configuration</p>
+            <h2>Objectifs CA</h2>
+          </div>
+          <button id="closeGoalsDialog" class="icon-button" type="button">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p class="muted" style="font-size: 0.85rem; margin-bottom: 1.5rem;">Définissez vos objectifs de CA par trimestre pour le graphique de performance.</p>
+        <div id="goalsInputsContainer">
+          <!-- Injecté par JS -->
+        </div>
+        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+          <button id="saveGoalsBtn" class="button button-primary">Enregistrer</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="compta.js"></script>
+  </body>
 </html>
