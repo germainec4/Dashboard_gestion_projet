@@ -7,7 +7,8 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 let supabase = null;
 let userSession = null;
 let googleTokenClient = null;
-let googleAccessToken = null;
+let googleAccessToken = localStorage.getItem('google_access_token') || null;
+let googleTokenExpiry = parseInt(localStorage.getItem('google_token_expiry') || "0");
 let calendar = null;
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -676,15 +677,23 @@ async function initGoogleAuth() {
           throw (response);
         }
         googleAccessToken = response.access_token;
-        console.log("Token Google reçu avec succès.");
-        const btn = document.getElementById('googleLoginBtn');
-        if (btn) {
-          btn.textContent = "Google Connecté";
-          btn.classList.replace('button-secondary', 'button-primary');
-        }
+        googleTokenExpiry = Date.now() + (response.expires_in * 1000);
+        
+        localStorage.setItem('google_access_token', googleAccessToken);
+        localStorage.setItem('google_token_expiry', googleTokenExpiry.toString());
+        
+        console.log("Token Google reçu et sauvegardé.");
+        updateGoogleLoginButton();
         fetchGoogleEvents();
       },
     });
+    
+    // Vérifier si un token valide est déjà présent
+    if (googleAccessToken && Date.now() < googleTokenExpiry) {
+      console.log("Token Google valide trouvé en cache.");
+      updateGoogleLoginButton();
+      fetchGoogleEvents();
+    }
     console.log("Client Google Token initialisé.");
   } catch (err) {
     console.error("Erreur lors de l'initialisation du client Google:", err);
@@ -696,8 +705,8 @@ window.initGoogleAuth = initGoogleAuth;
 
 function handleGoogleAuth() {
   console.log("Bouton Google cliqué.");
-  if (googleAccessToken) {
-    console.log("Déjà connecté, rafraîchissement des événements...");
+  if (googleAccessToken && Date.now() < googleTokenExpiry) {
+    console.log("Déjà connecté avec un token valide, rafraîchissement des événements...");
     fetchGoogleEvents();
     return;
   }
@@ -712,6 +721,14 @@ function handleGoogleAuth() {
   }
   
   googleTokenClient.requestAccessToken({prompt: 'consent'});
+}
+
+function updateGoogleLoginButton() {
+  const btn = document.getElementById('googleLoginBtn');
+  if (btn && googleAccessToken) {
+    btn.textContent = "Google Connecté";
+    btn.classList.replace('button-secondary', 'button-primary');
+  }
 }
 
 async function fetchGoogleEvents() {
