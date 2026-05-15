@@ -1752,23 +1752,17 @@ option {
 }
 
 .fc-event {
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
   padding: 4px 6px;
   font-size: 11px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
-}
-
-.fc-event:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .fc-v-event {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-left: 4px solid var(--surface-3) !important; /* Défaut */
+  background-color: var(--surface-2) !important;
+  border-left: 5px solid var(--surface-3) !important; /* Bande latérale par défaut */
 }
 
 /* Couleurs Premium par Pilier (Bande latérale uniquement) */

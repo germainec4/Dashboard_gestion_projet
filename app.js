@@ -823,11 +823,6 @@ async function fetchGoogleEvents() {
           const task = state.tasks.find(t => t.title === taskTitle);
           if (task) {
             className = `fc-event-pillar-${task.pillar}`;
-            const pillar = pillars.find(p => p.id === task.pillar);
-            if (pillar) {
-              backgroundColor = 'rgba(255, 255, 255, 0.05)'; // Fond très discret
-              borderColor = pillar.color;
-            }
           }
         }
 
