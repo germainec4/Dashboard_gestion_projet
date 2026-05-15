@@ -332,8 +332,7 @@ function render() {
       renderTaskSections();
     } else if (currentView === "map") {
       renderProjects();
-    } else if (currentView === "review") {
-      renderReview();
+
     } else if (currentView === "calendar") {
       renderCalendarView();
     }
@@ -584,16 +583,7 @@ function renderGantt() {
   container.innerHTML = headerHTML + rowsHTML;
 }
 
-function renderReview() {
-  const inboxCount = state.tasks.filter(t => t.status === "inbox").length;
-  const projectCount = state.projects.length;
-  const doneCount = state.tasks.filter(t => t.status === "done").length;
 
-  const safeSetText = (id, text) => { const el = document.querySelector(id); if (el) el.innerHTML = text; };
-  safeSetText("#reviewInboxStats", `<strong>${inboxCount}</strong> tâches à trier.`);
-  safeSetText("#reviewProjectStats", `<strong>${projectCount}</strong> projets actifs.`);
-  safeSetText("#reviewWeekStats", `<strong>${doneCount}</strong> tâches terminées.`);
-}
 
 // --- CALENDAR LOGIC ---
 function renderCalendarView() {
@@ -984,13 +974,6 @@ function showEventDetails(event) {
   } else {
     modal.classList.add('active');
   }
-}
-
-// Utilitaire pour sécuriser le HTML injecté
-function escapeHTML(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // Toggle ☐ ↔ ✅ sur une tâche Google Calendar
@@ -1413,10 +1396,28 @@ function initEventListeners() {
     }
   });
 
-  safeListen("#archiveWeekButton", "click", () => {
-    if (confirm("Archiver les tâches terminées ?")) {
+  safeListen("#archiveTasksButton", "click", async () => {
+    const doneTasks = state.tasks.filter(t => t.status === "done");
+    if (doneTasks.length === 0) {
+      showToast("Aucune tâche terminée à archiver.", "info");
+      return;
+    }
+
+    if (confirm(`Archiver ${doneTasks.length} tâches terminées ?`)) {
       state.tasks = state.tasks.filter(t => t.status !== "done");
       persistAndRender();
+
+      if (supabase) {
+        const { error } = await supabase.from('tasks').delete().eq('status', 'done');
+        if (error) {
+          console.error("Erreur d'archivage Supabase:", error);
+          showToast("Erreur lors de l'archivage cloud.", "error");
+        } else {
+          showToast(`${doneTasks.length} tâches archivées avec succès.`, "success");
+        }
+      } else {
+        showToast(`${doneTasks.length} tâches archivées localement.`, "success");
+      }
     }
   });
 

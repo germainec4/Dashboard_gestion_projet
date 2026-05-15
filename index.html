@@ -26,7 +26,6 @@
           <div class="view-tabs-group">
             <button class="tab-button active" data-view="cockpit" type="button">Aujourd'hui</button>
             <button class="tab-button" data-view="map" type="button">Projets</button>
-            <button class="tab-button" data-view="review" type="button">Revue hebdo</button>
             <button class="tab-button" data-view="calendar" type="button">Calendrier</button>
             <a href="compta.html" class="tab-button" style="text-decoration: none;">Comptabilité</a>
           </div>
@@ -125,48 +124,7 @@
           </div>
         </section>
 
-        <section id="reviewView" class="view">
-          <div class="review-header">
-            <p class="section-kicker">Secondaire mais essentiel</p>
-            <h2>Samedi Architecte</h2>
-            <p class="panel-copy">Une revue calme pour nettoyer l'inbox, clarifier les projets et repartir avec une semaine nette.</p>
-          </div>
 
-          <div class="review-grid">
-            <div class="review-step">
-              <div class="step-icon">1</div>
-              <div class="step-content">
-                <h3>Vider le bruit</h3>
-                <p id="reviewInboxStats" class="step-stats">Chargement...</p>
-                <button class="button button-primary" onclick="switchView('cockpit')">Aller à l'Inbox</button>
-              </div>
-            </div>
-
-            <div class="review-step">
-              <div class="step-icon">2</div>
-              <div class="step-content">
-                <h3>Clarifier les projets</h3>
-                <p id="reviewProjectStats" class="step-stats">Chargement...</p>
-                <button class="button button-primary" onclick="switchView('map')">Voir les projets</button>
-              </div>
-            </div>
-
-            <div class="review-step">
-              <div class="step-icon">3</div>
-              <div class="step-content">
-                <h3>Clôturer la semaine</h3>
-                <p id="reviewWeekStats" class="step-stats">Chargement...</p>
-                <button id="resetFocusButton" class="button button-primary">Remettre à zéro</button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="review-actions">
-             <button id="archiveWeekButton" class="button button-secondary" style="border-color: var(--success); color: var(--success);">
-               Archiver les tâches terminées
-             </button>
-          </div>
-        </section>
 
         <section id="calendarView" class="view">
           <div class="calendar-layout">
@@ -222,11 +180,7 @@
         <div class="footer-content">
           <p class="muted">© Germaine's corp — Système de productivité</p>
           <div class="footer-actions">
-            <button id="exportButton" class="footer-link">Exporter JSON</button>
-            <label class="footer-link">
-              Importer JSON
-              <input id="importInput" type="file" accept="application/json" />
-            </label>
+            <button id="archiveTasksButton" class="footer-link">Archiver les tâches terminées</button>
             <button id="logoutButton" class="footer-link" style="color: var(--danger-soft);">Déconnexion</button>
           </div>
         </div>
