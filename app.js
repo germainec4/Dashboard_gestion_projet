@@ -934,6 +934,10 @@ async function fetchGoogleEvents() {
         }
 
         const displayTitle = cleanTitle || (hasLimitedAccess ? "Occupé (Accès limité)" : "(Sans titre)");
+        
+        // Chercher si une tâche locale correspond à cet événement pour éviter les doublons à l'édition
+        const localTask = state.tasks.find(t => t.title === displayTitle);
+        const localTaskId = localTask ? localTask.id : null;
 
         return {
           id: item.id,
@@ -943,6 +947,7 @@ async function fetchGoogleEvents() {
           textColor: '#ffffff',
           className: [sourceClass, pillarClass, isGoogleTask ? 'fc-google-task' : ''].filter(Boolean),
           extendedProps: {
+            localTaskId: localTaskId,
             googleEvent: {
               id: item.id,
               calendarId: cal.id,
@@ -1161,16 +1166,23 @@ function initEventModalListeners() {
     closeModal();
     
     // 2. Chercher si une tâche locale correspond à cet événement
-    // On cherche par ID (si stocké) ou par titre (en nettoyant les emojis de synchro)
-    const cleanTitle = props.cleanTitle || selectedEvent.title;
-    let localTask = state.tasks.find(t => t.title === cleanTitle);
+    // On utilise l'ID direct s'il a été trouvé au chargement
+    const localTaskId = props.localTaskId;
     
-    if (localTask) {
-      // Si on a trouvé une tâche locale correspondante, on ouvre l'édition
-      openTaskDialog(localTask.id);
+    if (localTaskId) {
+      // Si on a l'ID exact, on ouvre l'édition directement
+      openTaskDialog(localTaskId);
     } else {
-      // Sinon, on ouvre une nouvelle tâche pré-remplie avec les infos de Google
-      openTaskDialog(); // Ouvre en mode création
+      // Sinon, on tente une recherche par titre au cas où (fallback)
+      const cleanTitle = props.cleanTitle || selectedEvent.title;
+      let taskByTitle = state.tasks.find(t => t.title === cleanTitle);
+      
+      if (taskByTitle) {
+        openTaskDialog(taskByTitle.id);
+      } else {
+        // Sinon, on ouvre une nouvelle tâche pré-remplie
+        openTaskDialog(); // Ouvre en mode création
+      }
       
       // On remplit les champs avec les infos de l'événement Google
       const titleInput = document.querySelector("#quickTitle");
