@@ -48,38 +48,7 @@
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
       }
-      @media (max-width: 768px) {
-        .charts-grid { grid-template-columns: 1fr; }
-        .chart-card { height: 280px; }
-        
-        .back-to-dashboard {
-          font-size: 0;
-          padding: 0;
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          justify-content: center;
-        }
-        .back-to-dashboard .icon {
-          margin: 0;
-          width: 20px;
-          height: 20px;
-        }
-        
-        .multi-select {
-          min-width: 100%;
-        }
-        
-        .panel-header-row > div:last-child {
-          display: flex;
-          width: 100%;
-          justify-content: space-between;
-        }
-        .panel-header-row > div:last-child .button {
-          flex: 1;
-          justify-content: center;
-        }
-      }
+
       .app-shell {
         width: min(1800px, calc(100vw - 40px));
       }
@@ -530,6 +499,38 @@
           border-color: #e53e3e;
           outline: none;
         }
+      @media (max-width: 768px) {
+        .charts-grid { grid-template-columns: 1fr !important; }
+        .chart-card { height: 280px; }
+        
+        .back-to-dashboard {
+          font-size: 0;
+          padding: 0;
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          justify-content: center;
+        }
+        .back-to-dashboard .icon {
+          margin: 0;
+          width: 20px;
+          height: 20px;
+        }
+        
+        .multi-select {
+          min-width: 100%;
+        }
+        
+        .panel-header-row > div:last-child {
+          display: flex;
+          width: 100%;
+          justify-content: space-between;
+        }
+        .panel-header-row > div:last-child .button {
+          flex: 1;
+          justify-content: center;
+        }
+      }
       </style>
 
       <main class="compta-dashboard">
