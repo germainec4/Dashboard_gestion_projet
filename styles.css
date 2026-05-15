@@ -1702,6 +1702,7 @@ option {
   border-radius: var(--radius);
   padding: 20px;
   flex: 1;
+  min-height: 750px;
 }
 
 .calendar-sidebar {

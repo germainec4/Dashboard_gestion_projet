@@ -378,7 +378,13 @@
     <div id="toastContainer" class="toast-container"></div>
     
     <!-- Scripts pour Google Calendar & FullCalendar -->
-    <script src="https://accounts.google.com/gsi/client" onload="onGoogleLibraryLoad()" async defer></script>
+    <script>
+      // Fonction globale pour le SDK Google
+      window.onGoogleLibraryLoad = function() {
+        if (window.initGoogleAuth) window.initGoogleAuth();
+      };
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     
     <script type="module" src="app.js"></script>

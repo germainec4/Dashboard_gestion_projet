@@ -594,6 +594,8 @@ function renderCalendarView() {
 function initCalendar() {
   const calendarEl = document.getElementById('calendar');
   if (!calendarEl) return;
+  
+  console.log("Initialisation de FullCalendar...");
 
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'timeGridWeek',
@@ -646,19 +648,28 @@ function initCalendar() {
 
 async function initGoogleAuth() {
   console.log("Tentative d'initialisation Google Auth...");
+  
+  if (!GOOGLE_CLIENT_ID) {
+    console.error("VITE_GOOGLE_CLIENT_ID est manquant dans l'environnement !");
+    // Pas de toast ici pour ne pas polluer si on n'est pas sur l'onglet calendar
+    return;
+  }
+
   if (!window.google) {
-    console.warn("Le SDK Google n'est pas encore chargé.");
+    console.warn("Le SDK Google (window.google) n'est pas encore chargé.");
     return;
   }
   
   try {
+    if (googleTokenClient) return; // Déjà fait
+    
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events',
       callback: (response) => {
         if (response.error !== undefined) {
           console.error("Erreur Google Auth Callback:", response);
-          showToast("Erreur d'authentification Google", "error");
+          showToast("Erreur d'authentification Google : " + response.error, "error");
           throw (response);
         }
         googleAccessToken = response.access_token;
@@ -678,7 +689,7 @@ async function initGoogleAuth() {
 }
 
 // Exposer pour index.html
-window.onGoogleLibraryLoad = initGoogleAuth;
+window.initGoogleAuth = initGoogleAuth;
 
 function handleGoogleAuth() {
   console.log("Bouton Google cliqué.");
@@ -704,28 +715,46 @@ async function fetchGoogleEvents() {
   if (!googleAccessToken || !calendar) return;
 
   try {
-    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=' + new Date().toISOString(), {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    console.log("Récupération des événements Google depuis:", startOfWeek.toISOString());
+
+    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?' + new URLSearchParams({
+      timeMin: startOfWeek.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime'
+    }), {
       headers: {
         'Authorization': `Bearer ${googleAccessToken}`
       }
     });
     const data = await response.json();
+    console.log("Données Google Calendar reçues:", data.items?.length || 0, "événements");
     
     const events = (data.items || []).map(item => ({
       id: item.id,
-      title: item.summary,
+      title: item.summary || "(Sans titre)",
       start: item.start.dateTime || item.start.date,
       end: item.end.dateTime || item.end.date,
       backgroundColor: 'var(--surface-3)',
-      borderColor: 'var(--border)'
+      borderColor: 'var(--context-accent)',
+      textColor: 'var(--text)',
+      extendedProps: { googleEvent: true }
     }));
     
-    calendar.removeAllEvents();
+    const existingSource = calendar.getEventSources()[0];
+    if (existingSource) existingSource.remove();
     calendar.addEventSource(events);
+    
+    showToast(`${events.length} événements synchronisés`, "success");
   } catch (err) {
     console.error('Erreur lors de la récupération des événements Google:', err);
   }
 }
+
 
 async function createGoogleEvent(task, start, end) {
   try {
