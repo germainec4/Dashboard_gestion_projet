@@ -300,7 +300,7 @@ async function deleteProject(id) {
   persistAndRender();
 
   if (supabase) {
-    const { error: tErr } = await supabase.from('tasks').delete().eq('projectId', id);
+    const { error: tErr } = await supabase.from('tasks').delete().eq('project_id', id);
     const { error: pErr } = await supabase.from('projects').delete().eq('id', id);
     if (tErr || pErr) console.error("Erreur de suppression projet Supabase:", tErr || pErr);
   }
@@ -822,6 +822,23 @@ function updateGoogleLoginButton() {
   }
 }
 
+function normalizeCalendarName(name = "") {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function pickDecathlonCalendar(calendarItems = []) {
+  const exactName = "decathlon - sync";
+  // On cherche d'abord la correspondance exacte sur le nom normalisé
+  const exactMatch = calendarItems.find(cal => normalizeCalendarName(cal.summary) === exactName);
+  if (exactMatch) return exactMatch;
+
+  // Sinon on cherche n'importe quel agenda contenant 'decathlon' mais en évitant l'adresse email si possible
+  return calendarItems.find(cal => {
+    const norm = normalizeCalendarName(cal.summary);
+    return norm.includes("decathlon") && !norm.includes("@decathlon.com");
+  }) || calendarItems.find(cal => normalizeCalendarName(cal.summary).includes("decathlon"));
+}
+
 async function fetchGoogleEvents() {
   if (!googleAccessToken || !calendar) return;
 
@@ -830,110 +847,117 @@ async function fetchGoogleEvents() {
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
 
     // 1. Récupérer la liste des agendas
-    const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+    const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?' + new URLSearchParams({
+      showHidden: 'true',
+      maxResults: '250'
+    }), {
       headers: { 'Authorization': `Bearer ${googleAccessToken}` }
     });
+    
+    if (!listResponse.ok) {
+      throw new Error(`Erreur Google Calendar List (${listResponse.status})`);
+    }
+    
     const listData = await listResponse.json();
-    
     console.log("Liste des agendas trouvés :", listData.items?.map(c => c.summary));
-    
+
     const calendarsToFetch = [
-      { id: 'primary', name: 'Principal', color: 'var(--surface-3)', borderColor: 'var(--context-accent)' }
+      { id: 'primary', name: 'Mon Agenda' }
     ];
 
-    // Recherche plus souple (sans espaces superflus et sans majuscules)
-    const decathlonCal = (listData.items || []).find(cal => 
-      cal.summary.trim().toLowerCase().includes('decathlon')
-    );
+    // Sélection robuste de l'agenda Decathlon
+    const decathlonCal = pickDecathlonCalendar(listData.items || []);
 
     if (decathlonCal) {
+      console.log("Agenda Decathlon sélectionné :", decathlonCal.summary, "(ID:", decathlonCal.id, ")");
       calendarsToFetch.push({
         id: decathlonCal.id,
         name: decathlonCal.summary,
+        accessRole: decathlonCal.accessRole,
         color: '#007abd', // Bleu Decathlon
         borderColor: '#005d8f'
       });
-      console.log("Agenda Decathlon trouvé :", decathlonCal.summary);
-    } else {
-      console.warn("Agenda Decathlon non trouvé dans la liste.");
     }
 
-    // 2. Récupérer les événements de tous les agendas sélectionnés
     let allEvents = [];
-    
+
     for (const cal of calendarsToFetch) {
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + new URLSearchParams({
         timeMin: startOfWeek.toISOString(),
+        timeMax: endOfWeek.toISOString(),
         singleEvents: true,
-        orderBy: 'startTime'
+        orderBy: 'startTime',
+        maxResults: '1000'
       }), {
         headers: { 'Authorization': `Bearer ${googleAccessToken}` }
       });
+      
+      if (!response.ok) {
+        console.warn(`Impossible de charger l'agenda ${cal.name}`);
+        continue;
+      }
       
       const data = await response.json();
       const events = (data.items || []).map(item => {
         const summary = item.summary || "";
         const isDecathlon = cal.id !== 'primary';
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
+        const hasLimitedAccess = cal.accessRole === 'freeBusyReader';
 
         // Détection des tâches Google (☐ / ✅)
         const isGoogleTask = summary.startsWith('☐') || summary.startsWith('✅');
         const isTaskCompleted = summary.startsWith('✅');
-        const cleanTitle = isGoogleTask ? summary.replace(/^[☐✅]\s*/, '').trim() : summary;
-        const taskClass = isGoogleTask ? (isTaskCompleted ? 'fc-google-task fc-google-task-done' : 'fc-google-task') : '';
+        const cleanTitle = summary.replace(/^[☐✅]\s*/, "");
 
-        // Détection du pilier — recherche élargie
-        let pillarClass = 'fc-event-pillar-untriaged';
+        // Détection du pilier
+        let pillarClass = '';
         if (isDecathlon) {
           pillarClass = 'fc-event-pillar-engineer'; // Decathlon = IET par défaut
         } else {
-          // Chercher si le titre correspond à une tâche connue
+          // Chercher si le titre correspond à une tâche connue pour le pilier
           let matchedTask = null;
-          const titleForMatch = cleanTitle; // Utiliser le titre nettoyé
-          if (titleForMatch.startsWith("Travail sur : ")) {
-            const taskTitle = titleForMatch.replace("Travail sur : ", "").trim();
+          if (cleanTitle.startsWith("Travail sur : ")) {
+            const taskTitle = cleanTitle.replace("Travail sur : ", "").trim();
             matchedTask = state.tasks.find(t => t.title === taskTitle);
           }
           if (!matchedTask) {
-            matchedTask = state.tasks.find(t => t.title === titleForMatch);
+            matchedTask = state.tasks.find(t => t.title === cleanTitle);
           }
           if (matchedTask) {
-            pillarClass = `fc-event-pillar-${matchedTask.pillar}`;
+            pillarClass = `fc-event-pillar-${matchedTask.pillar.toLowerCase()}`;
           }
         }
 
-        const classNames = [sourceClass, pillarClass, taskClass].filter(Boolean).join(' ');
+        const displayTitle = cleanTitle || (hasLimitedAccess ? "Occupé (Accès limité)" : "(Sans titre)");
 
         return {
           id: item.id,
-          title: cleanTitle || "(Sans titre)",
+          title: displayTitle,
           start: item.start.dateTime || item.start.date,
           end: item.end.dateTime || item.end.date,
           textColor: '#ffffff',
-          className: classNames,
-          extendedProps: { 
-            googleEvent: {
-              id: item.id,
-              calendarId: cal.id,
-              description: item.description,
-              location: item.location,
-              originalSummary: summary
-            },
+          className: [sourceClass, pillarClass, isGoogleTask ? 'fc-google-task' : ''].filter(Boolean),
+          extendedProps: {
+            isGoogleTask,
+            isTaskCompleted,
+            cleanTitle: displayTitle,
             calendarName: cal.name,
+            calendarAccessRole: cal.accessRole || 'unknown',
             description: item.description || "",
             location: item.location || "",
-            isGoogleTask: isGoogleTask,
-            isTaskCompleted: isTaskCompleted,
-            cleanTitle: cleanTitle
+            isDecathlon: isDecathlon
           }
         };
       });
       allEvents = allEvents.concat(events);
     }
 
-    // 3. Mise à jour du calendrier
+    // Mise à jour du calendrier
     const existingSource = calendar.getEventSources()[0];
     if (existingSource) existingSource.remove();
     calendar.addEventSource(allEvents);
