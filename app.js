@@ -1152,16 +1152,54 @@ function initEventModalListeners() {
   deleteBtn.onclick = deleteSelectedEvent;
   
   editBtn.onclick = () => {
-    if (!selectedEvent || !selectedEvent.extendedProps.googleEvent) return;
-    const googleEvent = selectedEvent.extendedProps.googleEvent;
-    const calendarId = googleEvent.calendarId || 'primary';
-    const eventId = googleEvent.id;
+    if (!selectedEvent) return;
     
-    // Google Calendar attend un paramètre 'eid' qui est le base64 de (eventId + " " + calendarId)
-    // On nettoie les éventuels "=" de padding pour l'URL
-    const eid = btoa(eventId + " " + calendarId).replace(/=/g, "");
-    const editUrl = `https://calendar.google.com/calendar/event?eid=${eid}`;
-    window.open(editUrl, '_blank');
+    const props = selectedEvent.extendedProps;
+    const googleEvent = props.googleEvent;
+    
+    // 1. Fermer la modale de détails
+    closeModal();
+    
+    // 2. Chercher si une tâche locale correspond à cet événement
+    // On cherche par ID (si stocké) ou par titre (en nettoyant les emojis de synchro)
+    const cleanTitle = props.cleanTitle || selectedEvent.title;
+    let localTask = state.tasks.find(t => t.title === cleanTitle);
+    
+    if (localTask) {
+      // Si on a trouvé une tâche locale correspondante, on ouvre l'édition
+      openTaskDialog(localTask.id);
+    } else {
+      // Sinon, on ouvre une nouvelle tâche pré-remplie avec les infos de Google
+      openTaskDialog(); // Ouvre en mode création
+      
+      // On remplit les champs avec les infos de l'événement Google
+      const titleInput = document.querySelector("#quickTitle");
+      const descInput = document.querySelector("#quickDescription");
+      const pillarInput = document.querySelector("#quickPillar");
+      const statusInput = document.querySelector("#quickStatus");
+      const dueDateInput = document.querySelector("#quickDueDate");
+      const startInput = document.querySelector("#quickStartTime");
+      const endInput = document.querySelector("#quickEndTime");
+      const planningFields = document.getElementById('calendarPlanningFields');
+
+      if (titleInput) titleInput.value = cleanTitle;
+      if (descInput) descInput.value = props.description || "";
+      if (dueDateInput && selectedEvent.start) {
+        dueDateInput.value = selectedEvent.start.toISOString().split('T')[0];
+      }
+      
+      // Afficher et remplir les champs de planification si c'est un événement à heure fixe
+      if (planningFields && selectedEvent.start && selectedEvent.end) {
+        planningFields.style.display = 'grid';
+        if (startInput) startInput.value = selectedEvent.start.toTimeString().slice(0, 5);
+        if (endInput) endInput.value = selectedEvent.end.toTimeString().slice(0, 5);
+      }
+
+      // Si c'est un événement Decathlon, on peut présumer le pilier "Projets" ou autre
+      if (props.isDecathlon && pillarInput) {
+        pillarInput.value = "projets";
+      }
+    }
   };
   
   window.onclick = (event) => {
