@@ -978,9 +978,9 @@ async function deleteSelectedEvent() {
 // Initialisation des boutons de la modale
 function initEventModalListeners() {
   const modal = document.getElementById('eventDetailsModal');
-  const closeBtn = modal.querySelector('.close-modal');
-  const closeBtn2 = document.getElementById('closeEventModalBtn');
+  const closeBtn = document.getElementById('closeEventModalBtn');
   const deleteBtn = document.getElementById('deleteEventBtn');
+  const editBtn = document.getElementById('editEventBtn');
   
   const closeModal = () => {
     if (modal.close) modal.close();
@@ -988,8 +988,17 @@ function initEventModalListeners() {
   };
   
   closeBtn.onclick = closeModal;
-  closeBtn2.onclick = closeModal;
   deleteBtn.onclick = deleteSelectedEvent;
+  
+  editBtn.onclick = () => {
+    if (!selectedEvent || !selectedEvent.extendedProps.googleEvent) return;
+    const googleEvent = selectedEvent.extendedProps.googleEvent;
+    const calendarId = googleEvent.calendarId || 'primary';
+    const eventId = googleEvent.id;
+    // Ouvrir l'événement dans Google Calendar pour le modifier
+    const editUrl = `https://calendar.google.com/calendar/r/eventedit/${eventId}`;
+    window.open(editUrl, '_blank');
+  };
   
   window.onclick = (event) => {
     if (event.target === modal) closeModal();

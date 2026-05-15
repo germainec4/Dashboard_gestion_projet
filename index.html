@@ -401,8 +401,21 @@
     <dialog id="eventDetailsModal" class="dialog">
       <div class="dialog-content">
         <div class="dialog-header">
-          <h2 id="eventModalTitle">Détails de l'événement</h2>
-          <button class="close-modal">&times;</button>
+          <div>
+            <p class="section-kicker">Détails</p>
+            <h2 id="eventModalTitle">Détails de l'événement</h2>
+          </div>
+        </div>
+        <div class="dialog-top-actions">
+          <button id="editEventBtn" class="icon-button" type="button" title="Modifier l'événement">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button id="deleteEventBtn" class="icon-button trash-button" type="button" title="Supprimer l'événement">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+          <button id="closeEventModalBtn" class="icon-button" type="button" aria-label="Fermer">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
         <div class="dialog-body">
           <div class="event-detail-item">
@@ -421,12 +434,6 @@
             <span class="detail-label">Agenda</span>
             <div id="eventModalCalendar" class="detail-value"></div>
           </div>
-        </div>
-        <div class="dialog-footer">
-          <button id="deleteEventBtn" class="button button-danger">
-            <i class="fas fa-trash"></i> Supprimer l'événement
-          </button>
-          <button id="closeEventModalBtn" class="button button-secondary">Fermer</button>
         </div>
       </div>
     </dialog>
