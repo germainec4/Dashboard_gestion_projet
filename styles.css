@@ -1748,7 +1748,7 @@ option {
 
 /* Zoom : slots plus hauts pour mieux voir les événements */
 .fc .fc-timegrid-slot {
-  height: 1.5em;
+  height: 1.1em;
 }
 
 .fc-theme-standard td, .fc-theme-standard th {
