@@ -656,7 +656,7 @@ function initCalendar() {
         container.className = `fc-task-content ${isCompleted ? 'fc-task-done' : ''}`;
         container.innerHTML = `
           <span class="fc-task-checkbox ${isCompleted ? 'checked' : ''}" data-event-id="${arg.event.id}">
-            ${isCompleted ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
+            ${isCompleted ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
           </span>
           <div class="fc-task-text">
             <span class="fc-task-time">${timeText}</span>
