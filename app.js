@@ -1156,8 +1156,11 @@ function initEventModalListeners() {
     const googleEvent = selectedEvent.extendedProps.googleEvent;
     const calendarId = googleEvent.calendarId || 'primary';
     const eventId = googleEvent.id;
-    // Ouvrir l'événement dans Google Calendar pour le modifier
-    const editUrl = `https://calendar.google.com/calendar/r/eventedit/${eventId}`;
+    
+    // Google Calendar attend un paramètre 'eid' qui est le base64 de (eventId + " " + calendarId)
+    // On nettoie les éventuels "=" de padding pour l'URL
+    const eid = btoa(eventId + " " + calendarId).replace(/=/g, "");
+    const editUrl = `https://calendar.google.com/calendar/event?eid=${eid}`;
     window.open(editUrl, '_blank');
   };
   
