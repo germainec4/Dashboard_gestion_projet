@@ -1302,11 +1302,24 @@ option {
     gap: 16px;
   }
 
-  .nav-tabs {
+  .view-tabs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-bottom: 8px;
+  }
+
+  .view-tabs-group {
     width: 100%;
     overflow-x: auto;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
     -webkit-overflow-scrolling: touch;
+    display: flex;
+    gap: 8px;
+  }
+
+  .view-tabs .topbar-actions {
+    min-width: 100%;
   }
 
   .topbar h1 {
@@ -1325,11 +1338,33 @@ option {
   }
 
   .sticky-add-button {
-    top: 15px;
-    right: 15px;
-    bottom: auto;
-    padding: 8px 16px;
-    font-size: 12px;
+    top: auto;
+    bottom: 20px;
+    right: 20px;
+    padding: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    justify-content: center;
+    font-size: 0; /* Masque le texte */
+  }
+
+  .sticky-add-button .icon {
+    width: 24px !important;
+    height: 24px !important;
+    margin: 0;
+  }
+
+  .panel-header-row,
+  .section-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .filters {
+    width: 100%;
+    flex-direction: column;
   }
 
   .task-edit-grid {
@@ -1346,6 +1381,21 @@ option {
     margin: 10px;
     padding: 16px;
     max-height: 90vh;
+  }
+
+  .dialog-top-actions {
+    top: 8px;
+    right: 8px;
+  }
+
+  .dialog-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .dialog-actions .button {
+    width: 100%;
   }
 
   .gantt-timeline {
@@ -1366,12 +1416,6 @@ option {
 }
 
 @media (max-width: 480px) {
-  .panel-header-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
   .button {
     width: 100%;
     justify-content: center;
