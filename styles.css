@@ -1337,6 +1337,10 @@ option {
     min-width: 0;
   }
 
+  #planDeTravailSection {
+    display: none;
+  }
+
   .sticky-add-button {
     top: auto;
     bottom: 20px;
@@ -1347,6 +1351,7 @@ option {
     border-radius: 50%;
     justify-content: center;
     font-size: 0; /* Masque le texte */
+    gap: 0;
   }
 
   .sticky-add-button .icon {
