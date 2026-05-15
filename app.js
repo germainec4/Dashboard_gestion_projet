@@ -1227,7 +1227,7 @@ async function updateGoogleEvent(calendarId, eventId, task, startTime, endTime) 
   if (!googleAccessToken) return false;
   
   const event = {
-    'summary': `Travail sur : ${task.title}`,
+    'summary': task.title,
     'description': task.description || '',
     'start': { 'dateTime': startTime.toISOString() },
     'end': { 'dateTime': endTime.toISOString() },
@@ -1262,7 +1262,7 @@ async function updateGoogleEvent(calendarId, eventId, task, startTime, endTime) 
 async function createGoogleEvent(task, start, end) {
   try {
     const event = {
-      'summary': `Travail sur : ${task.title}`,
+      'summary': task.title,
       'description': task.description || '',
       'start': { 'dateTime': start.toISOString() },
       'end': { 'dateTime': end.toISOString() },
