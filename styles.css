@@ -1722,6 +1722,10 @@ option {
   letter-spacing: 0.02em;
 }
 
+.fc .fc-button-active {
+  color: #000 !important;
+}
+
 .fc .fc-toolbar-title {
   font-size: 1.2rem;
   font-weight: 650;
