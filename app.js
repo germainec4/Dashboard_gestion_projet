@@ -665,7 +665,7 @@ async function initGoogleAuth() {
     
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events',
+      scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
       callback: (response) => {
         if (response.error !== undefined) {
           console.error("Erreur Google Auth Callback:", response);
@@ -720,40 +720,67 @@ async function fetchGoogleEvents() {
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     startOfWeek.setHours(0, 0, 0, 0);
 
-    console.log("Récupération des événements Google depuis:", startOfWeek.toISOString());
-
-    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?' + new URLSearchParams({
-      timeMin: startOfWeek.toISOString(),
-      singleEvents: true,
-      orderBy: 'startTime'
-    }), {
-      headers: {
-        'Authorization': `Bearer ${googleAccessToken}`
-      }
+    // 1. Récupérer la liste des agendas pour trouver l'ID de "Decathlon - sync"
+    const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+      headers: { 'Authorization': `Bearer ${googleAccessToken}` }
     });
-    const data = await response.json();
-    console.log("Données Google Calendar reçues:", data.items?.length || 0, "événements");
+    const listData = await listResponse.json();
     
-    const events = (data.items || []).map(item => ({
-      id: item.id,
-      title: item.summary || "(Sans titre)",
-      start: item.start.dateTime || item.start.date,
-      end: item.end.dateTime || item.end.date,
-      backgroundColor: 'var(--surface-3)',
-      borderColor: 'var(--context-accent)',
-      textColor: 'var(--text)',
-      extendedProps: { googleEvent: true }
-    }));
+    const calendarsToFetch = [
+      { id: 'primary', name: 'Principal', color: 'var(--surface-3)', borderColor: 'var(--context-accent)' }
+    ];
+
+    const decathlonCal = (listData.items || []).find(cal => cal.summary === 'Decathlon - sync');
+    if (decathlonCal) {
+      calendarsToFetch.push({
+        id: decathlonCal.id,
+        name: 'Decathlon',
+        color: '#007abd', // Bleu Decathlon
+        borderColor: '#005d8f'
+      });
+      console.log("Agenda Decathlon trouvé !");
+    }
+
+    // 2. Récupérer les événements de tous les agendas sélectionnés
+    let allEvents = [];
     
+    for (const cal of calendarsToFetch) {
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + new URLSearchParams({
+        timeMin: startOfWeek.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime'
+      }), {
+        headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+      });
+      
+      const data = await response.json();
+      const events = (data.items || []).map(item => ({
+        id: item.id,
+        title: (cal.id === 'primary' ? '' : '[D] ') + (item.summary || "(Sans titre)"),
+        start: item.start.dateTime || item.start.date,
+        end: item.end.dateTime || item.end.date,
+        backgroundColor: cal.color,
+        borderColor: cal.borderColor,
+        textColor: '#ffffff',
+        extendedProps: { 
+          googleEvent: true,
+          calendarId: cal.id
+        }
+      }));
+      allEvents = allEvents.concat(events);
+    }
+
+    // 3. Mise à jour du calendrier
     const existingSource = calendar.getEventSources()[0];
     if (existingSource) existingSource.remove();
-    calendar.addEventSource(events);
+    calendar.addEventSource(allEvents);
     
-    showToast(`${events.length} événements synchronisés`, "success");
+    showToast(`${allEvents.length} événements synchronisés`, "success");
   } catch (err) {
     console.error('Erreur lors de la récupération des événements Google:', err);
   }
 }
+
 
 
 async function createGoogleEvent(task, start, end) {
