@@ -662,11 +662,16 @@ function initCalendar() {
       const taskId = info.draggedEl.dataset.id;
       const task = state.tasks.find(t => t.id === taskId);
       
+      // Appliquer immédiatement les classes visuelles (pilier + source)
+      if (task) {
+        const pillarClass = `fc-event-pillar-${task.pillar || 'untriaged'}`;
+        info.event.setProp('classNames', ['fc-event-source-primary', pillarClass]);
+      }
+      
       if (task && googleAccessToken) {
         const success = await createGoogleEvent(task, info.event.start, info.event.end || new Date(info.event.start.getTime() + 3600000));
         if (success) {
           showToast(`Temps bloqué pour : ${task.title}`, "success");
-          // On pourrait optionnellement marquer la tâche comme planifiée/bloquée ici
         } else {
           info.revert();
           showToast("Erreur lors de la création sur Google Calendar", "error");

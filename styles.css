@@ -1845,7 +1845,7 @@ option {
 
 /* Style vertical events (time-grid) */
 .fc-v-event {
-  background-color: #1a1a1a !important;
+  background-color: #242424 !important;
   border: none !important;
   border-left: 4px solid var(--muted) !important;
 }
@@ -1871,28 +1871,30 @@ option {
 }
 
 .fc-event-time {
-  font-weight: 500;
-  font-size: 10px;
-  opacity: 0.8;
+  font-weight: 400;
+  font-size: 9px;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 1px;
 }
 
 /* --- Couleurs de FOND par Source (Decathlon vs Principal) --- */
 .fc-v-event.fc-event-source-primary {
-  background-color: #1a1a1a !important;
+  background-color: #242424 !important;
 }
 
 .fc-v-event.fc-event-source-decathlon {
-  background-color: rgba(0, 122, 189, 0.15) !important;
+  background-color: rgba(0, 122, 189, 0.25) !important;
 }
 
 /* All-day event styles by source */
 .fc-h-event.fc-event-source-primary {
-  background-color: #1a1a1a !important;
+  background-color: #242424 !important;
   border: none !important;
 }
 
 .fc-h-event.fc-event-source-decathlon {
-  background-color: rgba(0, 122, 189, 0.25) !important;
+  background-color: rgba(0, 122, 189, 0.35) !important;
   border: none !important;
 }
 
