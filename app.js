@@ -362,7 +362,6 @@ function renderContextAccent() {
 
 function renderSelectOptions() {
   const pillarOptions = pillars.map(p => `<option value="${p.id}">${p.label}</option>`).join("");
-  const projectOptions = state.projects.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join("");
   const statusOptions = statuses.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
 
   const safeSetHTML = (id, html) => { const el = document.querySelector(id); if (el) el.innerHTML = html; };
@@ -370,14 +369,29 @@ function renderSelectOptions() {
   safeSetHTML("#projectPillarInput", pillarOptions);
   safeSetHTML("#contextSwitch", `<option value="all">Tous les piliers</option>${pillarOptions}`);
   safeSetHTML("#pillarFilter", `<option value="all">Tous</option>${pillarOptions}`);
-  safeSetHTML("#quickProject", `<option value="">Sans projet</option>${projectOptions}`);
   safeSetHTML("#quickStatus", statusOptions);
+
+  updateQuickProjectOptions();
 
   const safeSetVal = (id, val) => { const el = document.querySelector(id); if (el) el.value = val; };
   safeSetVal("#contextSwitch", state.deepWorkPillar);
   safeSetVal("#pillarFilter", state.filters.pillar);
   safeSetVal("#statusFilter", state.filters.status);
   const sat = document.querySelector("#showArchivesToggle"); if (sat) sat.checked = !!state.showArchives;
+}
+
+function updateQuickProjectOptions(selectedProjectId = "") {
+  const pillarId = document.querySelector("#quickPillar")?.value;
+  const projectSelect = document.querySelector("#quickProject");
+  if (!projectSelect) return;
+
+  const filteredProjects = state.projects.filter(p => !pillarId || p.pillar === pillarId);
+  const projectOptions = filteredProjects.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join("");
+  
+  projectSelect.innerHTML = `<option value="">Sans projet</option>${projectOptions}`;
+  if (selectedProjectId) {
+    projectSelect.value = selectedProjectId;
+  }
 }
 
 function renderMetrics() {
@@ -1021,8 +1035,12 @@ function openTaskDialog(taskId = "") {
   document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
   document.querySelector("#quickTitle").value = task?.title || "";
   document.querySelector("#quickDescription").value = task?.description || "";
-  document.querySelector("#quickPillar").value = task?.pillar || (state.deepWorkPillar === "all" ? pillars[0].id : state.deepWorkPillar);
-  document.querySelector("#quickProject").value = task?.projectId || "";
+  const currentPillar = task?.pillar || (state.deepWorkPillar === "all" ? pillars[0].id : state.deepWorkPillar);
+  document.querySelector("#quickPillar").value = currentPillar;
+  
+  // Mettre à jour les projets filtrés pour ce pilier
+  updateQuickProjectOptions(task?.projectId || "");
+
   document.querySelector("#quickStatus").value = task?.status || "inbox";
   document.querySelector("#quickDueDate").value = task?.dueDate || "";
 
@@ -1128,6 +1146,7 @@ function initEventListeners() {
   });
 
   safeListen("#openTaskDialog", "click", () => openTaskDialog());
+  safeListen("#quickPillar", "change", () => updateQuickProjectOptions());
   safeListen("#closeTaskDialog", "click", () => document.querySelector("#taskDialog").close());
   safeListen("#contextSwitch", "change", (e) => { state.deepWorkPillar = e.target.value; persistAndRender(); });
   safeListen("#pillarFilter", "change", (e) => { state.filters.pillar = e.target.value; render(); });
