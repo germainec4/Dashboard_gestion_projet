@@ -209,6 +209,7 @@ async function addTask(title, pillar, projectId = "") {
       console.log("Tâche synchronisée avec succès");
     }
   }
+  return newTask;
 }
 
 async function updateTask(id, updates) {
@@ -231,6 +232,7 @@ async function updateTask(id, updates) {
     const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', id);
     if (error) console.error("Erreur de mise à jour Supabase:", error);
   }
+  return state.tasks[index];
 }
 
 async function deleteTask(id) {
@@ -639,6 +641,12 @@ function initCalendar() {
     eventResize: async (info) => {
       await updateGoogleEvent(info.event);
     },
+    selectable: true,
+    selectMirror: true,
+    select: (info) => {
+      openTaskDialogFromCalendar(info.start, info.end);
+      calendar.unselect();
+    },
     events: [] // Sera rempli par fetchGoogleEvents
   });
 
@@ -1000,6 +1008,14 @@ function openTaskDialog(taskId = "") {
   const dialog = document.querySelector("#taskDialog");
   if (!dialog) return;
 
+  // Réinitialiser les champs de planification
+  const planningFields = document.getElementById('calendarPlanningFields');
+  if (planningFields) planningFields.style.display = 'none';
+  const startInput = document.getElementById('quickStartTime');
+  const endInput = document.getElementById('quickEndTime');
+  if (startInput) startInput.value = "";
+  if (endInput) endInput.value = "";
+
   document.querySelector("#editingTaskId").value = task?.id || "";
   document.querySelector("#taskDialogKicker").textContent = task ? "Édition" : "Capture rapide";
   document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
@@ -1011,6 +1027,20 @@ function openTaskDialog(taskId = "") {
   document.querySelector("#quickDueDate").value = task?.dueDate || "";
 
   dialog.showModal();
+}
+
+function openTaskDialogFromCalendar(start, end) {
+  openTaskDialog(); // Reset & Open
+  
+  const planningFields = document.getElementById('calendarPlanningFields');
+  if (planningFields) planningFields.style.display = 'grid';
+  document.querySelector("#taskDialogTitle").textContent = "Planifier sur le calendrier";
+  document.querySelector("#quickStatus").value = "focus"; // Par défaut en focus si on planifie
+  
+  // Remplir les dates et heures
+  document.querySelector("#quickDueDate").value = start.toISOString().split('T')[0];
+  document.querySelector("#quickStartTime").value = start.toTimeString().slice(0, 5);
+  document.querySelector("#quickEndTime").value = end.toTimeString().slice(0, 5);
 }
 
 function openProjectDetail(id) {
@@ -1063,16 +1093,37 @@ function initEventListeners() {
     const title = document.querySelector("#quickTitle").value;
     const pillar = document.querySelector("#quickPillar").value;
     const projectId = document.querySelector("#quickProject").value;
+    const status = document.querySelector("#quickStatus").value;
+    const description = document.querySelector("#quickDescription").value;
+    const dueDate = document.querySelector("#quickDueDate").value;
+
+    const startTimeStr = document.getElementById('quickStartTime')?.value;
+    const endTimeStr = document.getElementById('quickEndTime')?.value;
+
+    let taskRef = null;
     if (id) {
-      await updateTask(id, {
-        title, pillar, projectId,
-        status: document.querySelector("#quickStatus").value,
-        description: document.querySelector("#quickDescription").value,
-        dueDate: document.querySelector("#quickDueDate").value
-      });
+      taskRef = await updateTask(id, { title, pillar, projectId, status, description, dueDate });
     } else {
-      await addTask(title, pillar, projectId);
+      taskRef = await addTask(title, pillar, projectId);
+      // Si on vient du calendrier, on a pu changer le statut/desc/date après addTask
+      if (status !== "inbox" || description || dueDate) {
+        await updateTask(taskRef.id, { status, description, dueDate });
+      }
     }
+
+    // Synchronisation Google Calendar si heures présentes
+    if (startTimeStr && endTimeStr && googleAccessToken) {
+      const start = new Date(`${dueDate}T${startTimeStr}`);
+      const end = new Date(`${dueDate}T${endTimeStr}`);
+      const fullTask = state.tasks.find(t => t.id === (id || taskRef.id));
+      
+      const success = await createGoogleEvent(fullTask, start, end);
+      if (success) {
+        showToast("Événement créé sur Google Calendar", "success");
+        fetchGoogleEvents(); // Rafraîchir le calendrier
+      }
+    }
+
     document.querySelector("#taskDialog").close();
   });
 

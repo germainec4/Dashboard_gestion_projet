@@ -263,6 +263,18 @@
             <input id="quickDueDate" type="date" />
           </label>
         </div>
+        
+        <!-- Champs de planification (affichés quand on vient du calendrier) -->
+        <div id="calendarPlanningFields" style="display: none;" class="task-edit-grid">
+          <label>
+            Heure début
+            <input id="quickStartTime" type="time" />
+          </label>
+          <label>
+            Heure fin
+            <input id="quickEndTime" type="time" />
+          </label>
+        </div>
         <button id="taskDialogSubmit" class="button button-primary" type="submit">Ajouter a l'inbox</button>
       </form>
     </dialog>
