@@ -764,7 +764,7 @@ async function fetchGoogleEvents() {
       const data = await response.json();
       const events = (data.items || []).map(item => ({
         id: item.id,
-        title: (cal.id === 'primary' ? '' : '[D] ') + (item.summary || "(Sans titre)"),
+        title: item.summary || "(Sans titre)",
         start: item.start.dateTime || item.start.date,
         end: item.end.dateTime || item.end.date,
         backgroundColor: cal.color,
