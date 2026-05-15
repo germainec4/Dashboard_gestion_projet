@@ -93,6 +93,20 @@ const ICONS = {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
+// Fonction utilitaire pour nettoyer les descriptions techniques (Decathlon Sync, etc.)
+function cleanDescription(text) {
+  if (!text) return "";
+  return text
+    .replace(/\[\[SYNC_DECATHLON_.*?\]\]/g, "")
+    .replace(/^Source:.*$/gm, "")
+    .replace(/^Source event ID:.*$/gm, "")
+    .replace(/^Synchronisé automatiquement.*$/gm, "")
+    .replace(/^Type détecté:.*$/gm, "")
+    .replace(/^Task ID:.*$/gm, "")
+    .replace(/^Task status:.*$/gm, "")
+    .trim();
+}
+
 const seedState = {
   deepWorkPillar: "all",
   filters: { pillar: "all", status: "all" },
@@ -464,7 +478,7 @@ function taskCard(task) {
       <div class="task-main">
         <div class="task-content-wrapper">
           <p class="task-title">${escapeHTML(task.title)}</p>
-          ${task.description ? `<p class="task-description">${escapeHTML(task.description)}</p>` : ''}
+          ${task.description ? `<p class="task-description">${escapeHTML(cleanDescription(task.description))}</p>` : ''}
           <div class="meta-row">
             <span class="pill" style="--pillar-color: ${pillar.color}">
               <span class="pillar-dot"></span>${pillar.label}
@@ -908,20 +922,6 @@ async function fetchGoogleEvents() {
         const isDecathlon = cal.id !== 'primary';
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
         const hasLimitedAccess = cal.accessRole === 'freeBusyReader';
-
-        // Fonction pour nettoyer les descriptions techniques (Decathlon Sync, etc.)
-        const cleanDescription = (text) => {
-          if (!text) return "";
-          return text
-            .replace(/\[\[SYNC_DECATHLON_.*?\]\]/g, "")
-            .replace(/^Source:.*$/gm, "")
-            .replace(/^Source event ID:.*$/gm, "")
-            .replace(/^Synchronisé automatiquement.*$/gm, "")
-            .replace(/^Type détecté:.*$/gm, "")
-            .replace(/^Task ID:.*$/gm, "")
-            .replace(/^Task status:.*$/gm, "")
-            .trim();
-        };
 
         const cleanedDescription = cleanDescription(item.description);
 
@@ -1418,7 +1418,8 @@ function initEventListeners() {
     const pillar = document.querySelector("#quickPillar").value;
     const projectId = document.querySelector("#quickProject").value;
     const status = document.querySelector("#quickStatus").value;
-    const description = document.querySelector("#quickDescription").value;
+    const rawDescription = document.querySelector("#quickDescription").value;
+    const description = cleanDescription(rawDescription);
     const dueDate = document.querySelector("#quickDueDate").value;
 
     const startTimeStr = document.getElementById('quickStartTime')?.value;
