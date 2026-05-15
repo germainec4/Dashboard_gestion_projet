@@ -25,12 +25,17 @@ Deno.serve(async (req) => {
     // 1. Récupérer les identifiants Qonto depuis les variables d'environnement
     const loginId = Deno.env.get('QONTO_LOGIN_ID')
     const secretKey = Deno.env.get('QONTO_SECRET_KEY')
+    const ownerUserId = Deno.env.get('OWNER_USER_ID')
 
     console.log('QONTO_LOGIN_ID set:', !!loginId)
     console.log('QONTO_SECRET_KEY set:', !!secretKey)
+    console.log('OWNER_USER_ID set:', !!ownerUserId)
 
     if (!loginId || !secretKey) {
       throw new Error('Identifiants Qonto manquants dans les secrets Supabase')
+    }
+    if (!ownerUserId) {
+      throw new Error('OWNER_USER_ID manquant dans les secrets Supabase')
     }
 
     // 2. Récupérer l'organisation pour avoir son slug
@@ -95,11 +100,13 @@ Deno.serve(async (req) => {
     const { data: pendingMissions, error: fetchError } = await supabase
       .from('missions')
       .select('*')
+      .eq('user_id', ownerUserId)
       .neq('status', 'payee')
 
     const { data: matchedIds, error: idsError } = await supabase
       .from('missions')
       .select('qonto_id')
+      .eq('user_id', ownerUserId)
       .not('qonto_id', 'is', null)
 
     if (fetchError || idsError) {
@@ -192,6 +199,7 @@ Deno.serve(async (req) => {
             bank_label: fullLabel // On stocke le libellé complet pour historique
           })
           .eq('id', finalMatch.id)
+          .eq('user_id', ownerUserId)
 
         if (!updateError) {
           updates.push({ id: finalMatch.id, title: finalMatch.title, amount: qontoAmount })

@@ -300,7 +300,7 @@ async function deleteProject(id) {
   persistAndRender();
 
   if (supabase) {
-    const { error: tErr } = await supabase.from('tasks').delete().eq('projectId', id);
+    const { error: tErr } = await supabase.from('tasks').delete().eq('project_id', id);
     const { error: pErr } = await supabase.from('projects').delete().eq('id', id);
     if (tErr || pErr) console.error("Erreur de suppression projet Supabase:", tErr || pErr);
   }
@@ -822,6 +822,18 @@ function updateGoogleLoginButton() {
   }
 }
 
+function normalizeCalendarName(name = "") {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function pickDecathlonCalendar(calendarItems = []) {
+  const exactName = "decathlon - sync";
+  const exactMatch = calendarItems.find(cal => normalizeCalendarName(cal.summary) === exactName);
+  if (exactMatch) return exactMatch;
+
+  return calendarItems.find(cal => normalizeCalendarName(cal.summary).includes("decathlon"));
+}
+
 async function fetchGoogleEvents() {
   if (!googleAccessToken || !calendar) return;
 
@@ -830,11 +842,19 @@ async function fetchGoogleEvents() {
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
 
     // 1. Récupérer la liste des agendas
-    const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+    const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?' + new URLSearchParams({
+      showHidden: 'true',
+      maxResults: '250'
+    }), {
       headers: { 'Authorization': `Bearer ${googleAccessToken}` }
     });
+    if (!listResponse.ok) {
+      throw new Error(`Erreur Google Calendar List (${listResponse.status})`);
+    }
     const listData = await listResponse.json();
     
     console.log("Liste des agendas trouvés :", listData.items?.map(c => c.summary));
@@ -844,14 +864,13 @@ async function fetchGoogleEvents() {
     ];
 
     // Recherche plus souple (sans espaces superflus et sans majuscules)
-    const decathlonCal = (listData.items || []).find(cal => 
-      cal.summary.trim().toLowerCase().includes('decathlon')
-    );
+    const decathlonCal = pickDecathlonCalendar(listData.items || []);
 
     if (decathlonCal) {
       calendarsToFetch.push({
         id: decathlonCal.id,
         name: decathlonCal.summary,
+        accessRole: decathlonCal.accessRole,
         color: '#007abd', // Bleu Decathlon
         borderColor: '#005d8f'
       });
@@ -866,17 +885,23 @@ async function fetchGoogleEvents() {
     for (const cal of calendarsToFetch) {
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + new URLSearchParams({
         timeMin: startOfWeek.toISOString(),
+        timeMax: endOfWeek.toISOString(),
         singleEvents: true,
-        orderBy: 'startTime'
+        orderBy: 'startTime',
+        maxResults: '2500'
       }), {
         headers: { 'Authorization': `Bearer ${googleAccessToken}` }
       });
+      if (!response.ok) {
+        throw new Error(`Erreur Google Events ${cal.name || cal.id} (${response.status})`);
+      }
       
       const data = await response.json();
       const events = (data.items || []).map(item => {
         const summary = item.summary || "";
         const isDecathlon = cal.id !== 'primary';
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
+        const hasLimitedAccess = cal.accessRole === 'freeBusyReader';
 
         // Détection des tâches Google (☐ / ✅)
         const isGoogleTask = summary.startsWith('☐') || summary.startsWith('✅');
@@ -908,7 +933,7 @@ async function fetchGoogleEvents() {
 
         return {
           id: item.id,
-          title: cleanTitle || "(Sans titre)",
+          title: cleanTitle || (hasLimitedAccess ? "Occupe (acces limite)" : "(Sans titre)"),
           start: item.start.dateTime || item.start.date,
           end: item.end.dateTime || item.end.date,
           textColor: '#ffffff',
@@ -922,6 +947,7 @@ async function fetchGoogleEvents() {
               originalSummary: summary
             },
             calendarName: cal.name,
+            calendarAccessRole: cal.accessRole || 'unknown',
             description: item.description || "",
             location: item.location || "",
             isGoogleTask: isGoogleTask,

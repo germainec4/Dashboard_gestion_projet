@@ -1,21 +1,67 @@
-# Multi-Focus Engine
+# Dashboard Gestion Projets
 
-Dashboard local pour piloter des activites multiples sans perdre la vision long terme.
+Dashboard personnel pour piloter les taches, projets, calendrier et suivi comptable freelance.
 
-## Ouvrir
+## Stack
 
-Ouvre `index.html` dans un navigateur. L'application fonctionne sans serveur et persiste les donnees dans `localStorage`.
+- Vite
+- JavaScript vanilla
+- Supabase Auth + Database
+- Supabase Edge Function pour la synchronisation Qonto
+- Google Calendar OAuth + FullCalendar
+- Chart.js pour les indicateurs comptables
 
-## Ce que contient cette V1
+## Configuration
 
-- Vue du jour en premier, avec les 1 a 3 priorites qui doivent avancer aujourd'hui.
-- Bouton sticky `Ajouter une tache`, toujours disponible et ouvrant une capture rapide.
-- Mode Deep Work par pilier.
-- Plan de travail filtre par pilier et statut, organise par etat.
-- Carte long terme: piliers, projets, milestones, definition du done et progression.
-- Roadmap Maintenant / Cette semaine / Ce mois-ci / Plus tard.
-- Rituel Samedi Architecte avec reset des priorites du jour, export et import JSON.
+1. Installer les dependances :
 
-## Direction design
+```bash
+npm install
+```
 
-Reference utilisee: `awesome-design-md` avec le style Vercel. L'interface vise une precision noir/blanc, dense, calme, avec les couleurs reservees aux piliers.
+2. Creer un fichier `.env` a partir de `.env.example` :
+
+```bash
+cp .env.example .env
+```
+
+3. Renseigner les variables frontend :
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_GOOGLE_CLIENT_ID`
+
+4. Configurer les secrets Supabase pour la fonction Qonto :
+
+```bash
+supabase secrets set OWNER_USER_ID=...
+supabase secrets set QONTO_LOGIN_ID=...
+supabase secrets set QONTO_SECRET_KEY=...
+```
+
+`OWNER_USER_ID` doit correspondre a l'utilisateur Supabase autorise a synchroniser les missions Qonto.
+
+## Base de donnees
+
+Les migrations Supabase sont dans `supabase/migrations/`.
+
+La migration P0 est additive : elle cree les tables manquantes et ajoute les colonnes attendues par le code sans supprimer de donnees.
+
+## Lancer
+
+```bash
+npm run dev
+```
+
+Puis ouvrir l'URL Vite affichee dans le terminal.
+
+## Securite
+
+Ne pas commiter :
+
+- `.env`
+- exports CSV clients ou missions
+- fichiers SQL contenant de vraies missions
+- cles API ou tokens
+
+Si une cle a deja ete commitee dans l'historique Git, elle doit etre revoquee cote service.
