@@ -1753,16 +1753,16 @@ option {
 
 .fc-event {
   border-radius: 4px;
-  border: 1px solid var(--border-soft);
-  padding: 4px 6px;
+  border: 1px solid var(--border);
+  padding: 5px 8px;
   font-size: 11px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .fc-v-event {
-  background-color: var(--surface-2) !important;
-  border-left: 5px solid var(--surface-3) !important; /* Bande latérale par défaut */
+  background-color: #222 !important;
+  border-left: 6px solid var(--muted) !important; /* Bordure plus épaisse */
 }
 
 /* Couleurs Premium par Pilier (Bande latérale uniquement) */
@@ -1772,8 +1772,8 @@ option {
 .fc-event-pillar-untriaged { border-left-color: #8f8f8f !important; }
 
 .fc-event-main {
-  color: var(--text-dim);
-  font-weight: 500;
+  color: var(--white) !important;
+  font-weight: 600;
 }
 
 .fc-event:hover .fc-event-main {
