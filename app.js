@@ -97,13 +97,15 @@ const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(16).sl
 function cleanDescription(text) {
   if (!text) return "";
   return text
-    .replace(/\[\[SYNC_DECATHLON_.*?\]\]/g, "")
-    .replace(/^Source:.*$/gm, "")
-    .replace(/^Source event ID:.*$/gm, "")
-    .replace(/^Synchronisé automatiquement.*$/gm, "")
-    .replace(/^Type détecté:.*$/gm, "")
-    .replace(/^Task ID:.*$/gm, "")
-    .replace(/^Task status:.*$/gm, "")
+    .replace(/\[\[SYNC_DECATHLON_.*?\]\]/gi, "")
+    .replace(/Source\s*:\s*.*?(?=(?:\s*Type détecté|$|\s*Task status))/gi, "")
+    .replace(/Source event ID\s*:\s*.*?(?=\s|$)/gi, "")
+    .replace(/Synchronisé automatiquement depuis le compte Decathlon\./gi, "")
+    .replace(/Type détecté\s*:\s*.*?(?=\s|$)/gi, "")
+    .replace(/Task ID\s*:\s*.*?(?=\s|$)/gi, "")
+    .replace(/Task status\s*:\s*.*?(?=\s|$)/gi, "")
+    .replace(/Task list\s*:\s*.*?(?=\s|$)/gi, "")
+    .replace(/\s\s+/g, ' ') // Supprimer les espaces doubles créés par le nettoyage
     .trim();
 }
 
