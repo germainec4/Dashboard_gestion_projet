@@ -633,6 +633,12 @@ function initCalendar() {
         info.revert();
       }
     },
+    eventDrop: async (info) => {
+      await updateGoogleEvent(info.event);
+    },
+    eventResize: async (info) => {
+      await updateGoogleEvent(info.event);
+    },
     events: [] // Sera rempli par fetchGoogleEvents
   });
 
@@ -791,11 +797,15 @@ async function fetchGoogleEvents() {
         borderColor: cal.borderColor,
         textColor: '#ffffff',
         extendedProps: { 
-          googleEvent: true,
-          calendarId: cal.id,
+          googleEvent: {
+            id: item.id,
+            calendarId: cal.id,
+            description: item.description,
+            location: item.location
+          },
+          calendarName: cal.name,
           description: item.description || "",
-          location: item.location || "",
-          calendarName: cal.name
+          location: item.location || ""
         }
       }));
       allEvents = allEvents.concat(events);
@@ -856,8 +866,8 @@ function showEventDetails(event) {
 async function deleteSelectedEvent() {
   if (!selectedEvent || !selectedEvent.extendedProps.googleEvent) return;
   
-  const calendarId = selectedEvent.extendedProps.calendarId;
-  const eventId = selectedEvent.id;
+  const calendarId = selectedEvent.extendedProps.googleEvent.calendarId || 'primary';
+  const eventId = selectedEvent.extendedProps.googleEvent.id;
   
   if (!confirm("Voulez-vous vraiment supprimer cet événement de votre Google Calendar ?")) return;
   
@@ -903,6 +913,46 @@ function initEventModalListeners() {
   window.onclick = (event) => {
     if (event.target === modal) closeModal();
   };
+}
+
+async function updateGoogleEvent(fullCalendarEvent) {
+  if (!googleAccessToken) return;
+  const googleEventId = fullCalendarEvent.extendedProps.googleEvent?.id;
+  const calendarId = fullCalendarEvent.extendedProps.googleEvent?.calendarId || 'primary';
+  
+  if (!googleEventId) {
+    showToast("Impossible de modifier cet événement (ID Google manquant)", "warning");
+    return;
+  }
+
+  try {
+    const updatedData = {
+      start: { dateTime: fullCalendarEvent.start.toISOString() },
+      end: { dateTime: (fullCalendarEvent.end || new Date(fullCalendarEvent.start.getTime() + 3600000)).toISOString() }
+    };
+
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${googleEventId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${googleAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatedData)
+    });
+
+    if (response.ok) {
+      showToast("Horaire mis à jour sur Google", "success");
+    } else {
+      const errorData = await response.json();
+      console.error("Erreur mise à jour Google:", errorData);
+      throw new Error("Erreur API Google");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Échec de la synchronisation Google", "error");
+    // Optionnel : recharger les événements pour annuler le changement visuel
+    fetchGoogleEvents();
+  }
 }
 
 async function createGoogleEvent(task, start, end) {
