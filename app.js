@@ -935,9 +935,20 @@ async function fetchGoogleEvents() {
 
         const displayTitle = cleanTitle || (hasLimitedAccess ? "Occupé (Accès limité)" : "(Sans titre)");
         
-        // Chercher si une tâche locale correspond à cet événement pour éviter les doublons à l'édition
-        const localTask = state.tasks.find(t => t.title === displayTitle);
-        const localTaskId = localTask ? localTask.id : null;
+        // 1. Chercher par ID direct (si stocké dans l'événement Google)
+        let localTaskId = item.extendedProperties?.private?.localTaskId;
+        let localTask = null;
+
+        if (localTaskId) {
+          localTask = state.tasks.find(t => t.id === localTaskId);
+        }
+
+        // 2. Secours : Chercher par titre si pas d'ID ou si l'ID n'existe plus
+        if (!localTask) {
+          const searchTitle = displayTitle.trim().toLowerCase();
+          localTask = state.tasks.find(t => t.title.trim().toLowerCase() === searchTitle);
+          if (localTask) localTaskId = localTask.id;
+        }
 
         return {
           id: item.id,
@@ -1265,7 +1276,12 @@ async function createGoogleEvent(task, start, end) {
       'summary': `Travail sur : ${task.title}`,
       'description': task.description || '',
       'start': { 'dateTime': start.toISOString() },
-      'end': { 'dateTime': end.toISOString() }
+      'end': { 'dateTime': end.toISOString() },
+      'extendedProperties': {
+        'private': {
+          'localTaskId': task.id
+        }
+      }
     };
 
     const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
