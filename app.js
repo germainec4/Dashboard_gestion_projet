@@ -877,6 +877,8 @@ function initEventModalListeners() {
   window.onclick = (event) => {
     if (event.target === modal) closeModal();
   };
+}
+
 async function createGoogleEvent(task, start, end) {
   try {
     const event = {
