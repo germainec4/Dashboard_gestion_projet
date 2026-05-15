@@ -654,7 +654,39 @@ function initCalendar() {
     scrollTime: '08:00:00',
     editable: true,
     droppable: true,
+    eventContent: (arg) => {
+      const props = arg.event.extendedProps;
+      const isTask = props.isGoogleTask || false;
+      const isCompleted = props.isTaskCompleted || false;
+      const cleanTitle = props.cleanTitle || arg.event.title;
+      const timeText = arg.timeText || '';
+
+      if (isTask) {
+        const container = document.createElement('div');
+        container.className = `fc-task-content ${isCompleted ? 'fc-task-done' : ''}`;
+        container.innerHTML = `
+          <span class="fc-task-checkbox ${isCompleted ? 'checked' : ''}" data-event-id="${arg.event.id}">
+            ${isCompleted ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
+          </span>
+          <div class="fc-task-text">
+            <span class="fc-task-time">${timeText}</span>
+            <span class="fc-task-title">${escapeHTML(cleanTitle)}</span>
+          </div>
+        `;
+        // Intercepter le clic sur la checkbox
+        const checkbox = container.querySelector('.fc-task-checkbox');
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleTaskCompletion(arg.event);
+        });
+        return { domNodes: [container] };
+      }
+      // Événements classiques : rendu par défaut
+      return true;
+    },
     eventClick: (info) => {
+      // Ne pas ouvrir le détail si on a cliqué sur la checkbox
+      if (info.jsEvent.target.closest('.fc-task-checkbox')) return;
       showEventDetails(info.event);
     },
     eventReceive: async (info) => {
@@ -847,6 +879,12 @@ async function fetchGoogleEvents() {
         const isDecathlon = cal.id !== 'primary';
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
 
+        // Détection des tâches Google (☐ / ✅)
+        const isGoogleTask = summary.startsWith('☐') || summary.startsWith('✅');
+        const isTaskCompleted = summary.startsWith('✅');
+        const cleanTitle = isGoogleTask ? summary.replace(/^[☐✅]\s*/, '').trim() : summary;
+        const taskClass = isGoogleTask ? (isTaskCompleted ? 'fc-google-task fc-google-task-done' : 'fc-google-task') : '';
+
         // Détection du pilier — recherche élargie
         let pillarClass = 'fc-event-pillar-untriaged';
         if (isDecathlon) {
@@ -854,24 +892,24 @@ async function fetchGoogleEvents() {
         } else {
           // Chercher si le titre correspond à une tâche connue
           let matchedTask = null;
-          if (summary.startsWith("Travail sur : ")) {
-            const taskTitle = summary.replace("Travail sur : ", "").trim();
+          const titleForMatch = cleanTitle; // Utiliser le titre nettoyé
+          if (titleForMatch.startsWith("Travail sur : ")) {
+            const taskTitle = titleForMatch.replace("Travail sur : ", "").trim();
             matchedTask = state.tasks.find(t => t.title === taskTitle);
           }
           if (!matchedTask) {
-            // Recherche plus souple par titre exact
-            matchedTask = state.tasks.find(t => t.title === summary);
+            matchedTask = state.tasks.find(t => t.title === titleForMatch);
           }
           if (matchedTask) {
             pillarClass = `fc-event-pillar-${matchedTask.pillar}`;
           }
         }
 
-        const classNames = [sourceClass, pillarClass].filter(Boolean).join(' ');
+        const classNames = [sourceClass, pillarClass, taskClass].filter(Boolean).join(' ');
 
         return {
           id: item.id,
-          title: summary || "(Sans titre)",
+          title: cleanTitle || "(Sans titre)",
           start: item.start.dateTime || item.start.date,
           end: item.end.dateTime || item.end.date,
           textColor: '#ffffff',
@@ -881,11 +919,15 @@ async function fetchGoogleEvents() {
               id: item.id,
               calendarId: cal.id,
               description: item.description,
-              location: item.location
+              location: item.location,
+              originalSummary: summary
             },
             calendarName: cal.name,
             description: item.description || "",
-            location: item.location || ""
+            location: item.location || "",
+            isGoogleTask: isGoogleTask,
+            isTaskCompleted: isTaskCompleted,
+            cleanTitle: cleanTitle
           }
         };
       });
@@ -941,6 +983,71 @@ function showEventDetails(event) {
     modal.showModal();
   } else {
     modal.classList.add('active');
+  }
+}
+
+// Utilitaire pour sécuriser le HTML injecté
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Toggle ☐ ↔ ✅ sur une tâche Google Calendar
+async function toggleTaskCompletion(fcEvent) {
+  if (!googleAccessToken) {
+    showToast("Veuillez vous connecter à Google d'abord", "warning");
+    return;
+  }
+  
+  const googleEvent = fcEvent.extendedProps.googleEvent;
+  if (!googleEvent) return;
+  
+  const calendarId = googleEvent.calendarId || 'primary';
+  const eventId = googleEvent.id;
+  const originalSummary = googleEvent.originalSummary || fcEvent.title;
+  
+  const wasCompleted = fcEvent.extendedProps.isTaskCompleted;
+  const cleanTitle = fcEvent.extendedProps.cleanTitle || fcEvent.title;
+  const newSummary = wasCompleted ? `☐ ${cleanTitle}` : `✅ ${cleanTitle}`;
+  
+  // Mise à jour visuelle instantanée
+  fcEvent.setExtendedProp('isTaskCompleted', !wasCompleted);
+  fcEvent.setExtendedProp('cleanTitle', cleanTitle);
+  
+  // Mettre à jour les classes CSS
+  const currentClasses = fcEvent.classNames.filter(c => !c.includes('fc-google-task-done'));
+  if (!wasCompleted) {
+    currentClasses.push('fc-google-task-done');
+  }
+  fcEvent.setProp('classNames', currentClasses);
+  
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ summary: newSummary })
+      }
+    );
+    
+    if (response.ok) {
+      // Mettre à jour le originalSummary
+      const updatedGoogleEvent = { ...googleEvent, originalSummary: newSummary };
+      fcEvent.setExtendedProp('googleEvent', updatedGoogleEvent);
+      showToast(wasCompleted ? `Tâche réouverte` : `Tâche terminée ✅`, "success");
+    } else {
+      // Revert en cas d'erreur
+      fcEvent.setExtendedProp('isTaskCompleted', wasCompleted);
+      throw new Error("Erreur API");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Impossible de mettre à jour la tâche", "error");
   }
 }
 
