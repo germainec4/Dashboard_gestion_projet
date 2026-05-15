@@ -909,6 +909,22 @@ async function fetchGoogleEvents() {
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
         const hasLimitedAccess = cal.accessRole === 'freeBusyReader';
 
+        // Fonction pour nettoyer les descriptions techniques (Decathlon Sync, etc.)
+        const cleanDescription = (text) => {
+          if (!text) return "";
+          return text
+            .replace(/\[\[SYNC_DECATHLON_.*?\]\]/g, "")
+            .replace(/^Source:.*$/gm, "")
+            .replace(/^Source event ID:.*$/gm, "")
+            .replace(/^Synchronisé automatiquement.*$/gm, "")
+            .replace(/^Type détecté:.*$/gm, "")
+            .replace(/^Task ID:.*$/gm, "")
+            .replace(/^Task status:.*$/gm, "")
+            .trim();
+        };
+
+        const cleanedDescription = cleanDescription(item.description);
+
         // Nettoyage complet du titre (emojis + préfixes de synchro)
         let cleanTitle = summary.replace(/^[☐✅]\s*/, "");
         cleanTitle = cleanTitle.replace(/^Travail sur\s*:\s*/i, "");
@@ -961,7 +977,7 @@ async function fetchGoogleEvents() {
             googleEvent: {
               id: item.id,
               calendarId: cal.id,
-              description: item.description,
+              description: cleanedDescription,
               location: item.location,
               originalSummary: summary
             },
@@ -970,7 +986,7 @@ async function fetchGoogleEvents() {
             cleanTitle: displayTitle,
             calendarName: cal.name,
             calendarAccessRole: cal.accessRole || 'unknown',
-            description: item.description || "",
+            description: cleanedDescription,
             location: item.location || "",
             isDecathlon: isDecathlon
           }
