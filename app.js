@@ -610,6 +610,9 @@ function initCalendar() {
     slotMaxTime: '21:00:00',
     editable: true,
     droppable: true,
+    eventClick: (info) => {
+      showEventDetails(info.event);
+    },
     eventReceive: async (info) => {
       // Appelé quand une tâche externe est lâchée sur le calendrier
       const taskId = info.draggedEl.dataset.id;
@@ -772,7 +775,10 @@ async function fetchGoogleEvents() {
         textColor: '#ffffff',
         extendedProps: { 
           googleEvent: true,
-          calendarId: cal.id
+          calendarId: cal.id,
+          description: item.description || "",
+          location: item.location || "",
+          calendarName: cal.name
         }
       }));
       allEvents = allEvents.concat(events);
@@ -791,7 +797,87 @@ async function fetchGoogleEvents() {
 
 
 
-async function createGoogleEvent(task, start, end) {
+let selectedEvent = null;
+
+function showEventDetails(event) {
+  selectedEvent = event;
+  const props = event.extendedProps;
+  
+  document.getElementById('eventModalTitle').textContent = event.title;
+  
+  const startStr = event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const endStr = event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const dateStr = event.start.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('eventModalTime').textContent = `${dateStr}, ${startStr} - ${endStr}`;
+  
+  const descEl = document.getElementById('eventModalDescription');
+  if (props.description) {
+    document.getElementById('eventDescriptionContainer').style.display = 'block';
+    descEl.textContent = props.description;
+  } else {
+    document.getElementById('eventDescriptionContainer').style.display = 'none';
+  }
+  
+  const locEl = document.getElementById('eventModalLocation');
+  if (props.location) {
+    document.getElementById('eventLocationContainer').style.display = 'block';
+    locEl.textContent = props.location;
+  } else {
+    document.getElementById('eventLocationContainer').style.display = 'none';
+  }
+  
+  document.getElementById('eventModalCalendar').textContent = props.calendarName || "Principal";
+  
+  const modal = document.getElementById('eventDetailsModal');
+  modal.classList.add('active');
+}
+
+async function deleteSelectedEvent() {
+  if (!selectedEvent || !selectedEvent.extendedProps.googleEvent) return;
+  
+  const calendarId = selectedEvent.extendedProps.calendarId;
+  const eventId = selectedEvent.id;
+  
+  if (!confirm("Voulez-vous vraiment supprimer cet événement de votre Google Calendar ?")) return;
+  
+  try {
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${googleAccessToken}`
+      }
+    });
+    
+    if (response.ok) {
+      selectedEvent.remove();
+      document.getElementById('eventDetailsModal').classList.remove('active');
+      showToast("Événement supprimé", "success");
+    } else {
+      throw new Error("Erreur lors de la suppression");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Impossible de supprimer l'événement", "error");
+  }
+}
+
+// Initialisation des boutons de la modale
+function initEventModalListeners() {
+  const modal = document.getElementById('eventDetailsModal');
+  const closeBtn = modal.querySelector('.close-modal');
+  const closeBtn2 = document.getElementById('closeEventModalBtn');
+  const deleteBtn = document.getElementById('deleteEventBtn');
+  
+  const closeModal = () => modal.classList.remove('active');
+  
+  closeBtn.onclick = closeModal;
+  closeBtn2.onclick = closeModal;
+  deleteBtn.onclick = deleteSelectedEvent;
+  
+  window.onclick = (event) => {
+    if (event.target === modal) closeModal();
+  };
+}
   try {
     const event = {
       'summary': `Travail sur : ${task.title}`,
@@ -1096,6 +1182,7 @@ function initDragAndDrop() {
 
 async function init() {
   initEventListeners();
+  initEventModalListeners();
   render(); // Instant local
   if (supabase) {
     await initAuth();

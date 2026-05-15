@@ -1797,3 +1797,49 @@ option {
   }
 }
 
+/* --- Détails Événement Modal --- */
+.event-detail-item {
+  margin-bottom: 20px;
+}
+
+.detail-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.detail-value.markdown-body {
+  white-space: pre-wrap;
+  background: var(--surface-2);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #bb2d3b;
+  transform: translateY(-1px);
+}

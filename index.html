@@ -375,6 +375,40 @@
       </div>
     </div>
 
+    <!-- Modal Détails Événement -->
+    <div id="eventDetailsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="eventModalTitle">Détails de l'événement</h2>
+          <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="event-detail-item">
+            <span class="detail-label">Horaire</span>
+            <div id="eventModalTime" class="detail-value"></div>
+          </div>
+          <div class="event-detail-item" id="eventDescriptionContainer">
+            <span class="detail-label">Description</span>
+            <div id="eventModalDescription" class="detail-value markdown-body"></div>
+          </div>
+          <div class="event-detail-item" id="eventLocationContainer">
+            <span class="detail-label">Lieu</span>
+            <div id="eventModalLocation" class="detail-value"></div>
+          </div>
+          <div class="event-detail-item">
+            <span class="detail-label">Agenda</span>
+            <div id="eventModalCalendar" class="detail-value"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="deleteEventBtn" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Supprimer l'événement
+          </button>
+          <button id="closeEventModalBtn" class="btn btn-secondary">Fermer</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
     
     <!-- Scripts pour Google Calendar & FullCalendar -->
