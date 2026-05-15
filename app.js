@@ -944,13 +944,44 @@ function showEventDetails(event) {
   }
 }
 
+// Custom confirm dialog (remplace le confirm() natif)
+function showConfirm(title, message, confirmLabel = "Supprimer") {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById('confirmDialog');
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOk');
+    const cancelBtn = document.getElementById('confirmCancel');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    okBtn.textContent = confirmLabel;
+
+    const cleanup = (result) => {
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      if (dialog.close) dialog.close();
+      resolve(result);
+    };
+
+    okBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    
+    dialog.showModal();
+  });
+}
+
 async function deleteSelectedEvent() {
   if (!selectedEvent || !selectedEvent.extendedProps.googleEvent) return;
   
   const calendarId = selectedEvent.extendedProps.googleEvent.calendarId || 'primary';
   const eventId = selectedEvent.extendedProps.googleEvent.id;
   
-  if (!confirm("Voulez-vous vraiment supprimer cet événement de votre Google Calendar ?")) return;
+  const confirmed = await showConfirm(
+    "Supprimer l'événement",
+    "Voulez-vous vraiment supprimer cet événement de votre Google Calendar ?"
+  );
+  if (!confirmed) return;
   
   try {
     const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
