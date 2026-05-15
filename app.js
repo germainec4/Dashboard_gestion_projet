@@ -659,8 +659,8 @@ function initCalendar() {
             ${isCompleted ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
           </span>
           <div class="fc-task-text">
-            <span class="fc-task-time">${timeText}</span>
             <span class="fc-task-title">${escapeHTML(cleanTitle)}</span>
+            <span class="fc-task-time">${timeText}</span>
           </div>
         `;
         // Intercepter le clic sur la checkbox
