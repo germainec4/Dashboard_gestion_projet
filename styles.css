@@ -1752,20 +1752,37 @@ option {
 }
 
 .fc-event {
-  border-radius: 4px;
-  border: none;
-  padding: 2px 4px;
-  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 4px 6px;
+  font-size: 11px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
 }
 
 .fc-v-event {
-  background-color: var(--surface-2);
-  border-left: 3px solid var(--context-accent) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-left: 4px solid var(--surface-3) !important; /* Défaut */
 }
 
+/* Couleurs Premium par Pilier (Bande latérale uniquement) */
+.fc-event-pillar-engineer { border-left-color: #3291ff !important; }
+.fc-event-pillar-design { border-left-color: #f5a623 !important; }
+.fc-event-pillar-commerce { border-left-color: #0cce6b !important; }
+.fc-event-pillar-untriaged { border-left-color: #8f8f8f !important; }
+
 .fc-event-main {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.fc-event:hover .fc-event-main {
   color: var(--text);
 }
 

@@ -814,16 +814,19 @@ async function fetchGoogleEvents() {
         let backgroundColor = cal.color;
         let borderColor = cal.borderColor;
 
+        let className = "";
+
         // Détection du pilier si c'est une tâche synchronisée
         const summary = item.summary || "";
         if (summary.startsWith("Travail sur : ")) {
           const taskTitle = summary.replace("Travail sur : ", "").trim();
           const task = state.tasks.find(t => t.title === taskTitle);
           if (task) {
+            className = `fc-event-pillar-${task.pillar}`;
             const pillar = pillars.find(p => p.id === task.pillar);
             if (pillar) {
-              backgroundColor = pillar.color;
-              borderColor = pillar.color; // On peut mettre la même chose ou une nuance plus sombre
+              backgroundColor = 'rgba(255, 255, 255, 0.05)'; // Fond très discret
+              borderColor = pillar.color;
             }
           }
         }
@@ -836,6 +839,7 @@ async function fetchGoogleEvents() {
           backgroundColor: backgroundColor,
           borderColor: borderColor,
           textColor: '#ffffff',
+          className: className,
           extendedProps: { 
             googleEvent: {
               id: item.id,
