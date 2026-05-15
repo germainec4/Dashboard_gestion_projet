@@ -26,6 +26,7 @@
             <button class="tab-button active" data-view="cockpit" type="button">Aujourd'hui</button>
             <button class="tab-button" data-view="map" type="button">Projets</button>
             <button class="tab-button" data-view="review" type="button">Revue hebdo</button>
+            <button class="tab-button" data-view="calendar" type="button">Calendrier</button>
             <a href="compta.html" class="tab-button" style="text-decoration: none;">Comptabilité</a>
           </div>
           <div class="topbar-actions">
@@ -163,6 +164,47 @@
              <button id="archiveWeekButton" class="button button-secondary" style="border-color: var(--success); color: var(--success);">
                Archiver les tâches terminées
              </button>
+          </div>
+        </section>
+
+        <section id="calendarView" class="view">
+          <div class="calendar-layout">
+            <div class="calendar-main-container">
+              <div class="panel-header panel-header-row">
+                <div>
+                  <p class="section-kicker">Time-blocking</p>
+                  <h2>Agenda & Planning</h2>
+                </div>
+                <div id="googleAuthContainer" class="auth-status-container">
+                  <button id="googleLoginBtn" class="button button-secondary">
+                    <svg class="icon" viewBox="0 0 24 24" style="width:16px; height:16px; margin-right:8px;"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C9.03,19.27 6.59,16.74 6.59,13.5C6.59,10.26 9.03,7.73 12.19,7.73C14.15,7.73 15.65,8.4 16.66,9.34L18.66,7.34C17.15,5.92 14.93,5 12.19,5C7.45,5 3.59,8.81 3.59,13.5C3.59,18.19 7.45,22 12.19,22C17.39,22 21.39,18.32 21.39,13.11C21.39,12.44 21.39,11.77 21.35,11.1V11.1Z"/></svg>
+                    Connexion Google
+                  </button>
+                </div>
+              </div>
+              <div id="calendar" class="calendar-panel"></div>
+            </div>
+
+            <aside class="calendar-sidebar">
+              <div class="panel">
+                <div class="panel-header">
+                  <p class="section-kicker">À planifier</p>
+                  <h3>Tâches Draggable</h3>
+                  <p class="panel-copy">Glissez-déposez ces tâches sur l'agenda pour bloquer votre temps.</p>
+                </div>
+                
+                <div class="sidebar-filters">
+                  <select id="calendarTaskFilter" class="control-select">
+                    <option value="focus">Priorités du jour</option>
+                    <option value="planned">Tâches planifiées</option>
+                  </select>
+                </div>
+
+                <div id="externalTasksList" class="task-list external-events">
+                  <!-- Chargées via JS -->
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
       <footer class="app-footer">
@@ -333,6 +375,11 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Scripts pour Google Calendar & FullCalendar -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    
     <script type="module" src="app.js"></script>
   </body>
 </html>

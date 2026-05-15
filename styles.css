@@ -1682,3 +1682,117 @@ option {
   display: none !important;
 }
 
+/* --- VUE CALENDRIER --- */
+.calendar-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  min-height: 80vh;
+}
+
+.calendar-main-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 20px;
+  flex: 1;
+}
+
+.calendar-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-filters {
+  margin-bottom: 20px;
+}
+
+/* Surcharges FullCalendar pour le thème Sombre Premium */
+.fc {
+  --fc-border-color: var(--border-soft);
+  --fc-page-bg-color: transparent;
+  --fc-button-bg-color: var(--surface-2);
+  --fc-button-border-color: var(--border);
+  --fc-button-hover-bg-color: var(--surface-3);
+  --fc-button-active-bg-color: var(--context-accent);
+  --fc-today-bg-color: rgba(255, 255, 255, 0.03);
+  font-family: inherit;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.fc .fc-col-header-cell-cushion {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 10px 0;
+  text-decoration: none;
+}
+
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--muted-2);
+  font-size: 11px;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+  border-color: var(--border-soft) !important;
+}
+
+.fc-event {
+  border-radius: 4px;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.fc-v-event {
+  background-color: var(--surface-2);
+  border-left: 3px solid var(--context-accent) !important;
+}
+
+.fc-event-main {
+  color: var(--text);
+}
+
+.fc-timegrid-now-indicator-line {
+  border-color: var(--danger);
+}
+
+/* Style pour les événements externes (à glisser) */
+.external-events .task-card {
+  margin-bottom: 8px;
+  cursor: grab;
+}
+
+.external-events .task-card:active {
+  cursor: grabbing;
+}
+
+.auth-status-container {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 1100px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+  .calendar-sidebar {
+    order: -1;
+  }
+}
+

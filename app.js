@@ -2,9 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 let supabase = null;
 let userSession = null;
+let googleTokenClient = null;
+let googleAccessToken = null;
+let calendar = null;
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
@@ -327,6 +331,8 @@ function render() {
       renderProjects();
     } else if (currentView === "review") {
       renderReview();
+    } else if (currentView === "calendar") {
+      renderCalendarView();
     }
 
     initDragAndDrop();
@@ -572,6 +578,161 @@ function renderReview() {
   safeSetText("#reviewWeekStats", `<strong>${doneCount}</strong> tâches terminées.`);
 }
 
+// --- CALENDAR LOGIC ---
+function renderCalendarView() {
+  if (!calendar) {
+    initCalendar();
+  }
+  renderCalendarSidebar();
+  
+  // Si on a déjà un token, on peut tenter de rafraîchir les events
+  if (googleAccessToken) {
+    fetchGoogleEvents();
+  }
+}
+
+function initCalendar() {
+  const calendarEl = document.getElementById('calendar');
+  if (!calendarEl) return;
+
+  calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'timeGridWeek',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'timeGridWeek,timeGridDay'
+    },
+    firstDay: 1, // Lundi
+    locale: 'fr',
+    slotMinTime: '07:00:00',
+    slotMaxTime: '21:00:00',
+    editable: true,
+    droppable: true,
+    eventReceive: async (info) => {
+      // Appelé quand une tâche externe est lâchée sur le calendrier
+      const taskId = info.draggedEl.dataset.id;
+      const task = state.tasks.find(t => t.id === taskId);
+      
+      if (task && googleAccessToken) {
+        const success = await createGoogleEvent(task, info.event.start, info.event.end || new Date(info.event.start.getTime() + 3600000));
+        if (success) {
+          showToast(`Temps bloqué pour : ${task.title}`, "success");
+          // On pourrait optionnellement marquer la tâche comme planifiée/bloquée ici
+        } else {
+          info.revert();
+          showToast("Erreur lors de la création sur Google Calendar", "error");
+        }
+      } else if (!googleAccessToken) {
+        showToast("Veuillez vous connecter à Google d'abord", "warning");
+        info.revert();
+      }
+    },
+    events: [] // Sera rempli par fetchGoogleEvents
+  });
+
+  calendar.render();
+  
+  // Initialiser le Drag & Drop des tâches externes
+  new FullCalendar.Draggable(document.getElementById('externalTasksList'), {
+    itemSelector: '.task-card',
+    eventData: function(eventEl) {
+      return {
+        title: eventEl.querySelector('.task-title').innerText,
+        duration: '01:00'
+      };
+    }
+  });
+}
+
+async function initGoogleAuth() {
+  if (!window.google) return;
+  
+  googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events',
+    callback: (response) => {
+      if (response.error !== undefined) {
+        throw (response);
+      }
+      googleAccessToken = response.access_token;
+      document.getElementById('googleLoginBtn').textContent = "Google Connecté";
+      document.getElementById('googleLoginBtn').classList.replace('button-secondary', 'button-primary');
+      fetchGoogleEvents();
+    },
+  });
+}
+
+function handleGoogleAuth() {
+  if (googleAccessToken) return; // Déjà connecté
+  googleTokenClient.requestAccessToken({prompt: 'consent'});
+}
+
+async function fetchGoogleEvents() {
+  if (!googleAccessToken || !calendar) return;
+
+  try {
+    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=' + new Date().toISOString(), {
+      headers: {
+        'Authorization': `Bearer ${googleAccessToken}`
+      }
+    });
+    const data = await response.json();
+    
+    const events = (data.items || []).map(item => ({
+      id: item.id,
+      title: item.summary,
+      start: item.start.dateTime || item.start.date,
+      end: item.end.dateTime || item.end.date,
+      backgroundColor: 'var(--surface-3)',
+      borderColor: 'var(--border)'
+    }));
+    
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
+  } catch (err) {
+    console.error('Erreur lors de la récupération des événements Google:', err);
+  }
+}
+
+async function createGoogleEvent(task, start, end) {
+  try {
+    const event = {
+      'summary': `Travail sur : ${task.title}`,
+      'description': task.description || '',
+      'start': { 'dateTime': start.toISOString() },
+      'end': { 'dateTime': end.toISOString() }
+    };
+
+    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${googleAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event)
+    });
+    
+    return response.ok;
+  } catch (err) {
+    console.error('Erreur lors de la création de l\'événement Google:', err);
+    return false;
+  }
+}
+
+function renderCalendarSidebar() {
+  const filter = document.getElementById('calendarTaskFilter')?.value || "focus";
+  const container = document.getElementById('externalTasksList');
+  if (!container) return;
+  
+  const filteredTasks = state.tasks.filter(t => t.status === filter && isInDeepWorkContext(t));
+  
+  if (filteredTasks.length === 0) {
+    container.innerHTML = `<div class="empty-state">Aucune tâche ${filter === 'focus' ? 'prioritaire' : 'planifiée'}.</div>`;
+  } else {
+    container.innerHTML = filteredTasks.map(taskCard).join('');
+  }
+}
+
 // Dialogs & Actions
 function openTaskDialog(taskId = "") {
   const task = taskId ? state.tasks.find(t => t.id === taskId) : null;
@@ -660,6 +821,8 @@ function initEventListeners() {
   safeListen("#pillarFilter", "change", (e) => { state.filters.pillar = e.target.value; render(); });
   safeListen("#statusFilter", "change", (e) => { state.filters.status = e.target.value; render(); });
   safeListen("#showArchivesToggle", "change", (e) => { state.showArchives = e.target.checked; render(); });
+  safeListen("#calendarTaskFilter", "change", () => renderCalendarSidebar());
+  safeListen("#googleLoginBtn", "click", () => handleGoogleAuth());
 
   safeListen("#addProjectButton", "click", () => {
     document.querySelector("#editingProjectId").value = "";
@@ -839,9 +1002,11 @@ async function init() {
   render(); // Instant local
   if (supabase) {
     await initAuth();
+    initGoogleAuth();
   } else {
     state = await loadState();
     render();
+    initGoogleAuth();
   }
 }
 
