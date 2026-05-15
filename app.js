@@ -645,25 +645,58 @@ function initCalendar() {
 }
 
 async function initGoogleAuth() {
-  if (!window.google) return;
+  console.log("Tentative d'initialisation Google Auth...");
+  if (!window.google) {
+    console.warn("Le SDK Google n'est pas encore chargé.");
+    return;
+  }
   
-  googleTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events',
-    callback: (response) => {
-      if (response.error !== undefined) {
-        throw (response);
-      }
-      googleAccessToken = response.access_token;
-      document.getElementById('googleLoginBtn').textContent = "Google Connecté";
-      document.getElementById('googleLoginBtn').classList.replace('button-secondary', 'button-primary');
-      fetchGoogleEvents();
-    },
-  });
+  try {
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events',
+      callback: (response) => {
+        if (response.error !== undefined) {
+          console.error("Erreur Google Auth Callback:", response);
+          showToast("Erreur d'authentification Google", "error");
+          throw (response);
+        }
+        googleAccessToken = response.access_token;
+        console.log("Token Google reçu avec succès.");
+        const btn = document.getElementById('googleLoginBtn');
+        if (btn) {
+          btn.textContent = "Google Connecté";
+          btn.classList.replace('button-secondary', 'button-primary');
+        }
+        fetchGoogleEvents();
+      },
+    });
+    console.log("Client Google Token initialisé.");
+  } catch (err) {
+    console.error("Erreur lors de l'initialisation du client Google:", err);
+  }
 }
 
+// Exposer pour index.html
+window.onGoogleLibraryLoad = initGoogleAuth;
+
 function handleGoogleAuth() {
-  if (googleAccessToken) return; // Déjà connecté
+  console.log("Bouton Google cliqué.");
+  if (googleAccessToken) {
+    console.log("Déjà connecté, rafraîchissement des événements...");
+    fetchGoogleEvents();
+    return;
+  }
+  
+  if (!googleTokenClient) {
+    console.warn("Client Google non initialisé, tentative de ré-initialisation...");
+    initGoogleAuth();
+    if (!googleTokenClient) {
+      showToast("Le service Google n'est pas encore prêt. Réessayez dans une seconde.", "warning");
+      return;
+    }
+  }
+  
   googleTokenClient.requestAccessToken({prompt: 'consent'});
 }
 
