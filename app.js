@@ -810,26 +810,45 @@ async function fetchGoogleEvents() {
       });
       
       const data = await response.json();
-      const events = (data.items || []).map(item => ({
-        id: item.id,
-        title: item.summary || "(Sans titre)",
-        start: item.start.dateTime || item.start.date,
-        end: item.end.dateTime || item.end.date,
-        backgroundColor: cal.color,
-        borderColor: cal.borderColor,
-        textColor: '#ffffff',
-        extendedProps: { 
-          googleEvent: {
-            id: item.id,
-            calendarId: cal.id,
-            description: item.description,
-            location: item.location
-          },
-          calendarName: cal.name,
-          description: item.description || "",
-          location: item.location || ""
+      const events = (data.items || []).map(item => {
+        let backgroundColor = cal.color;
+        let borderColor = cal.borderColor;
+
+        // Détection du pilier si c'est une tâche synchronisée
+        const summary = item.summary || "";
+        if (summary.startsWith("Travail sur : ")) {
+          const taskTitle = summary.replace("Travail sur : ", "").trim();
+          const task = state.tasks.find(t => t.title === taskTitle);
+          if (task) {
+            const pillar = pillars.find(p => p.id === task.pillar);
+            if (pillar) {
+              backgroundColor = pillar.color;
+              borderColor = pillar.color; // On peut mettre la même chose ou une nuance plus sombre
+            }
+          }
         }
-      }));
+
+        return {
+          id: item.id,
+          title: summary || "(Sans titre)",
+          start: item.start.dateTime || item.start.date,
+          end: item.end.dateTime || item.end.date,
+          backgroundColor: backgroundColor,
+          borderColor: borderColor,
+          textColor: '#ffffff',
+          extendedProps: { 
+            googleEvent: {
+              id: item.id,
+              calendarId: cal.id,
+              description: item.description,
+              location: item.location
+            },
+            calendarName: cal.name,
+            description: item.description || "",
+            location: item.location || ""
+          }
+        };
+      });
       allEvents = allEvents.concat(events);
     }
 
