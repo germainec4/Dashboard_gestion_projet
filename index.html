@@ -376,13 +376,13 @@
     </div>
 
     <!-- Modal Détails Événement -->
-    <div id="eventDetailsModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
+    <dialog id="eventDetailsModal" class="dialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
           <h2 id="eventModalTitle">Détails de l'événement</h2>
           <button class="close-modal">&times;</button>
         </div>
-        <div class="modal-body">
+        <div class="dialog-body">
           <div class="event-detail-item">
             <span class="detail-label">Horaire</span>
             <div id="eventModalTime" class="detail-value"></div>
@@ -400,14 +400,14 @@
             <div id="eventModalCalendar" class="detail-value"></div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button id="deleteEventBtn" class="btn btn-danger">
+        <div class="dialog-footer">
+          <button id="deleteEventBtn" class="button button-danger">
             <i class="fas fa-trash"></i> Supprimer l'événement
           </button>
-          <button id="closeEventModalBtn" class="btn btn-secondary">Fermer</button>
+          <button id="closeEventModalBtn" class="button button-secondary">Fermer</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <div id="toastContainer" class="toast-container"></div>
     

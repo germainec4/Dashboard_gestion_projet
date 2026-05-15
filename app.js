@@ -829,7 +829,11 @@ function showEventDetails(event) {
   document.getElementById('eventModalCalendar').textContent = props.calendarName || "Principal";
   
   const modal = document.getElementById('eventDetailsModal');
-  modal.classList.add('active');
+  if (modal.showModal) {
+    modal.showModal();
+  } else {
+    modal.classList.add('active');
+  }
 }
 
 async function deleteSelectedEvent() {
@@ -850,7 +854,9 @@ async function deleteSelectedEvent() {
     
     if (response.ok) {
       selectedEvent.remove();
-      document.getElementById('eventDetailsModal').classList.remove('active');
+      const modal = document.getElementById('eventDetailsModal');
+      if (modal.close) modal.close();
+      else modal.classList.remove('active');
       showToast("Événement supprimé", "success");
     } else {
       throw new Error("Erreur lors de la suppression");
@@ -868,7 +874,10 @@ function initEventModalListeners() {
   const closeBtn2 = document.getElementById('closeEventModalBtn');
   const deleteBtn = document.getElementById('deleteEventBtn');
   
-  const closeModal = () => modal.classList.remove('active');
+  const closeModal = () => {
+    if (modal.close) modal.close();
+    else modal.classList.remove('active');
+  };
   
   closeBtn.onclick = closeModal;
   closeBtn2.onclick = closeModal;
