@@ -943,6 +943,13 @@ async function fetchGoogleEvents() {
           textColor: '#ffffff',
           className: [sourceClass, pillarClass, isGoogleTask ? 'fc-google-task' : ''].filter(Boolean),
           extendedProps: {
+            googleEvent: {
+              id: item.id,
+              calendarId: cal.id,
+              description: item.description,
+              location: item.location,
+              originalSummary: summary
+            },
             isGoogleTask,
             isTaskCompleted,
             cleanTitle: displayTitle,
