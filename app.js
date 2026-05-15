@@ -601,11 +601,37 @@ function renderCalendarView() {
     initCalendar();
   }
   renderCalendarSidebar();
+  initSidebarToggle();
   
   // Si on a déjà un token, on peut tenter de rafraîchir les events
   if (googleAccessToken) {
     fetchGoogleEvents();
   }
+}
+
+function initSidebarToggle() {
+  const layout = document.querySelector('.calendar-layout');
+  const toggleBtn = document.getElementById('sidebarToggleBtn');
+  const reopenBtn = document.getElementById('sidebarReopenBtn');
+  if (!layout || !toggleBtn || !reopenBtn) return;
+
+  // Restore state from localStorage
+  const savedState = localStorage.getItem('calendar_sidebar_collapsed');
+  if (savedState === 'true') {
+    layout.classList.add('sidebar-collapsed');
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    layout.classList.add('sidebar-collapsed');
+    localStorage.setItem('calendar_sidebar_collapsed', 'true');
+    setTimeout(() => calendar?.updateSize(), 350);
+  });
+
+  reopenBtn.addEventListener('click', () => {
+    layout.classList.remove('sidebar-collapsed');
+    localStorage.setItem('calendar_sidebar_collapsed', 'false');
+    setTimeout(() => calendar?.updateSize(), 350);
+  });
 }
 
 function initCalendar() {
@@ -623,8 +649,9 @@ function initCalendar() {
     },
     firstDay: 1, // Lundi
     locale: 'fr',
-    slotMinTime: '07:00:00',
-    slotMaxTime: '21:00:00',
+    slotMinTime: '00:00:00',
+    slotMaxTime: '24:00:00',
+    scrollTime: '08:00:00',
     editable: true,
     droppable: true,
     eventClick: (info) => {
@@ -811,30 +838,39 @@ async function fetchGoogleEvents() {
       
       const data = await response.json();
       const events = (data.items || []).map(item => {
-        let backgroundColor = cal.color;
-        let borderColor = cal.borderColor;
-
-        let className = "";
-
-        // Détection du pilier si c'est une tâche synchronisée
         const summary = item.summary || "";
-        if (summary.startsWith("Travail sur : ")) {
-          const taskTitle = summary.replace("Travail sur : ", "").trim();
-          const task = state.tasks.find(t => t.title === taskTitle);
-          if (task) {
-            className = `fc-event-pillar-${task.pillar}`;
+        const isDecathlon = cal.id !== 'primary';
+        const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
+
+        // Détection du pilier — recherche élargie
+        let pillarClass = 'fc-event-pillar-untriaged';
+        if (isDecathlon) {
+          pillarClass = 'fc-event-pillar-engineer'; // Decathlon = IET par défaut
+        } else {
+          // Chercher si le titre correspond à une tâche connue
+          let matchedTask = null;
+          if (summary.startsWith("Travail sur : ")) {
+            const taskTitle = summary.replace("Travail sur : ", "").trim();
+            matchedTask = state.tasks.find(t => t.title === taskTitle);
+          }
+          if (!matchedTask) {
+            // Recherche plus souple par titre exact
+            matchedTask = state.tasks.find(t => t.title === summary);
+          }
+          if (matchedTask) {
+            pillarClass = `fc-event-pillar-${matchedTask.pillar}`;
           }
         }
+
+        const classNames = [sourceClass, pillarClass].filter(Boolean).join(' ');
 
         return {
           id: item.id,
           title: summary || "(Sans titre)",
           start: item.start.dateTime || item.start.date,
           end: item.end.dateTime || item.end.date,
-          backgroundColor: backgroundColor,
-          borderColor: borderColor,
           textColor: '#ffffff',
-          className: className,
+          className: classNames,
           extendedProps: { 
             googleEvent: {
               id: item.id,

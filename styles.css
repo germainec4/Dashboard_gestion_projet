@@ -1688,12 +1688,37 @@ option {
   grid-template-columns: 1fr 380px;
   gap: 24px;
   min-height: 80vh;
+  position: relative;
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar collapsed state */
+.calendar-layout.sidebar-collapsed {
+  grid-template-columns: 1fr 0px;
+  gap: 0;
+}
+
+.calendar-layout.sidebar-collapsed .calendar-sidebar {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  transform: translateX(20px);
+}
+
+.calendar-layout.sidebar-collapsed .sidebar-reopen-btn {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0);
 }
 
 .calendar-main-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .calendar-panel {
@@ -1709,13 +1734,56 @@ option {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease;
 }
 
 .sidebar-filters {
   margin-bottom: 20px;
 }
 
-/* Surcharges FullCalendar pour le thème Sombre Premium */
+/* --- Sidebar Toggle Buttons --- */
+.sidebar-toggle-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 4px;
+  opacity: 0.5;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  opacity: 1;
+  background: var(--surface-2);
+}
+
+.sidebar-reopen-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateX(40px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  width: 36px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.sidebar-reopen-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  width: 42px;
+}
+
+/* --- Surcharges FullCalendar pour le thème Sombre Premium --- */
 .fc {
   --fc-border-color: var(--border-soft);
   --fc-page-bg-color: transparent;
@@ -1725,6 +1793,13 @@ option {
   --fc-button-active-bg-color: var(--context-accent);
   --fc-today-bg-color: rgba(255, 255, 255, 0.03);
   font-family: inherit;
+}
+
+/* Capitalisation des boutons FullCalendar (Today, Week, Day) */
+.fc .fc-button {
+  text-transform: capitalize;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .fc .fc-toolbar-title {
@@ -1751,36 +1826,100 @@ option {
   border-color: var(--border-soft) !important;
 }
 
+/* --- Événements Calendar: Style de base --- */
 .fc-event {
   border-radius: 4px;
-  border: 1px solid var(--border);
-  padding: 5px 8px;
-  font-size: 11px;
+  border: none;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: box-shadow 0.2s, transform 0.15s;
 }
 
+.fc-event:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transform: scale(1.01);
+}
+
+/* Style vertical events (time-grid) */
 .fc-v-event {
-  background-color: #222 !important;
-  border-left: 6px solid var(--muted) !important; /* Bordure plus épaisse */
+  background-color: #1a1a1a !important;
+  border: none !important;
+  border-left: 4px solid var(--muted) !important;
 }
 
-/* Couleurs Premium par Pilier (Bande latérale uniquement) */
-.fc-event-pillar-engineer { border-left-color: #3291ff !important; }
-.fc-event-pillar-design { border-left-color: #f5a623 !important; }
-.fc-event-pillar-commerce { border-left-color: #0cce6b !important; }
-.fc-event-pillar-untriaged { border-left-color: #8f8f8f !important; }
-
+/* --- Titre des événements: CLAIREMENT VISIBLE --- */
 .fc-event-main {
   color: var(--white) !important;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.35;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 
+.fc-event-main-frame {
+  overflow: visible;
+}
+
+.fc-event-title {
+  font-weight: 700;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.fc-event-time {
+  font-weight: 500;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* --- Couleurs de FOND par Source (Decathlon vs Principal) --- */
+.fc-v-event.fc-event-source-primary {
+  background-color: #1a1a1a !important;
+}
+
+.fc-v-event.fc-event-source-decathlon {
+  background-color: rgba(0, 122, 189, 0.15) !important;
+}
+
+/* All-day event styles by source */
+.fc-h-event.fc-event-source-primary {
+  background-color: #1a1a1a !important;
+  border: none !important;
+}
+
+.fc-h-event.fc-event-source-decathlon {
+  background-color: rgba(0, 122, 189, 0.25) !important;
+  border: none !important;
+}
+
+/* --- Couleurs de BORDURE GAUCHE par Pilier --- */
+.fc-v-event.fc-event-pillar-engineer { border-left: 4px solid #3291ff !important; }
+.fc-v-event.fc-event-pillar-design   { border-left: 4px solid #f5a623 !important; }
+.fc-v-event.fc-event-pillar-commerce  { border-left: 4px solid #0cce6b !important; }
+.fc-v-event.fc-event-pillar-untriaged { border-left: 4px solid #555 !important; }
+
+/* All-day event pillar colors */
+.fc-h-event.fc-event-pillar-engineer { border-left: 4px solid #3291ff !important; }
+.fc-h-event.fc-event-pillar-design   { border-left: 4px solid #f5a623 !important; }
+.fc-h-event.fc-event-pillar-commerce  { border-left: 4px solid #0cce6b !important; }
+.fc-h-event.fc-event-pillar-untriaged { border-left: 4px solid #555 !important; }
+
+/* Hover sur événement */
 .fc-event:hover .fc-event-main {
   color: var(--text);
 }
 
+/* Now indicator */
 .fc-timegrid-now-indicator-line {
+  border-color: var(--danger);
+  border-width: 2px;
+}
+
+.fc-timegrid-now-indicator-arrow {
   border-color: var(--danger);
 }
 
@@ -1805,6 +1944,9 @@ option {
   }
   .calendar-sidebar {
     order: -1;
+  }
+  .sidebar-reopen-btn {
+    display: none;
   }
 }
 
@@ -1854,3 +1996,4 @@ option {
   background: #bb2d3b;
   transform: translateY(-1px);
 }
+
