@@ -1171,56 +1171,50 @@ function initEventModalListeners() {
     
     const props = selectedEvent.extendedProps;
     const googleEvent = props.googleEvent;
+    const eventId = googleEvent?.id;
+    const calendarId = googleEvent?.calendarId || 'primary';
     
     // 1. Fermer la modale de détails
     closeModal();
     
     // 2. Chercher si une tâche locale correspond à cet événement
-    // On utilise l'ID direct s'il a été trouvé au chargement
     const localTaskId = props.localTaskId;
     
     if (localTaskId) {
-      // Si on a l'ID exact, on ouvre l'édition directement
       openTaskDialog(localTaskId);
     } else {
-      // Sinon, on tente une recherche par titre au cas où (fallback)
       const cleanTitle = props.cleanTitle || selectedEvent.title;
       let taskByTitle = state.tasks.find(t => t.title === cleanTitle);
-      
-      if (taskByTitle) {
-        openTaskDialog(taskByTitle.id);
-      } else {
-        // Sinon, on ouvre une nouvelle tâche pré-remplie
-        openTaskDialog(); // Ouvre en mode création
-      }
-      
-      // On remplit les champs avec les infos de l'événement Google
-      const titleInput = document.querySelector("#quickTitle");
-      const descInput = document.querySelector("#quickDescription");
-      const pillarInput = document.querySelector("#quickPillar");
-      const statusInput = document.querySelector("#quickStatus");
-      const dueDateInput = document.querySelector("#quickDueDate");
-      const startInput = document.querySelector("#quickStartTime");
-      const endInput = document.querySelector("#quickEndTime");
-      const planningFields = document.getElementById('calendarPlanningFields');
+      openTaskDialog(taskByTitle ? taskByTitle.id : "");
+    }
+    
+    // On remplit les IDs Google pour permettre la mise à jour synchrone
+    document.querySelector("#editingGoogleEventId").value = eventId || "";
+    document.querySelector("#editingGoogleCalendarId").value = calendarId || "";
+    
+    // On remplit les champs avec les infos de l'événement Google
+    const titleInput = document.querySelector("#quickTitle");
+    const descInput = document.querySelector("#quickDescription");
+    const pillarInput = document.querySelector("#quickPillar");
+    const dueDateInput = document.querySelector("#quickDueDate");
+    const startInput = document.querySelector("#quickStartTime");
+    const endInput = document.querySelector("#quickEndTime");
+    const planningFields = document.getElementById('calendarPlanningFields');
 
-      if (titleInput) titleInput.value = cleanTitle;
-      if (descInput) descInput.value = props.description || "";
-      if (dueDateInput && selectedEvent.start) {
-        dueDateInput.value = selectedEvent.start.toISOString().split('T')[0];
-      }
-      
-      // Afficher et remplir les champs de planification si c'est un événement à heure fixe
-      if (planningFields && selectedEvent.start && selectedEvent.end) {
-        planningFields.style.display = 'grid';
-        if (startInput) startInput.value = selectedEvent.start.toTimeString().slice(0, 5);
-        if (endInput) endInput.value = selectedEvent.end.toTimeString().slice(0, 5);
-      }
+    if (titleInput && !titleInput.value) titleInput.value = props.cleanTitle || selectedEvent.title;
+    if (descInput && !descInput.value) descInput.value = props.description || "";
+    if (dueDateInput && selectedEvent.start) {
+      dueDateInput.value = selectedEvent.start.toISOString().split('T')[0];
+    }
+    
+    if (planningFields && selectedEvent.start && selectedEvent.end) {
+      planningFields.style.display = 'grid';
+      if (startInput) startInput.value = selectedEvent.start.toTimeString().slice(0, 5);
+      if (endInput) endInput.value = selectedEvent.end.toTimeString().slice(0, 5);
+    }
 
-      // Si c'est un événement Decathlon, on peut présumer le pilier "Projets" ou autre
-      if (props.isDecathlon && pillarInput) {
-        pillarInput.value = "projets";
-      }
+    if (props.isDecathlon && pillarInput) {
+      pillarInput.value = "projets";
     }
   };
   
@@ -1229,43 +1223,39 @@ function initEventModalListeners() {
   };
 }
 
-async function updateGoogleEvent(fullCalendarEvent) {
-  if (!googleAccessToken) return;
-  const googleEventId = fullCalendarEvent.extendedProps.googleEvent?.id;
-  const calendarId = fullCalendarEvent.extendedProps.googleEvent?.calendarId || 'primary';
+async function updateGoogleEvent(calendarId, eventId, task, startTime, endTime) {
+  if (!googleAccessToken) return false;
   
-  if (!googleEventId) {
-    showToast("Impossible de modifier cet événement (ID Google manquant)", "warning");
-    return;
-  }
+  const event = {
+    'summary': `Travail sur : ${task.title}`,
+    'description': task.description || '',
+    'start': { 'dateTime': startTime.toISOString() },
+    'end': { 'dateTime': endTime.toISOString() },
+    'extendedProperties': {
+      'private': {
+        'localTaskId': task.id
+      }
+    }
+  };
 
   try {
-    const updatedData = {
-      start: { dateTime: fullCalendarEvent.start.toISOString() },
-      end: { dateTime: (fullCalendarEvent.end || new Date(fullCalendarEvent.start.getTime() + 3600000)).toISOString() }
-    };
-
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${googleEventId}`, {
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${googleAccessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updatedData)
+      body: JSON.stringify(event)
     });
 
-    if (response.ok) {
-      showToast("Horaire mis à jour sur Google", "success");
-    } else {
-      const errorData = await response.json();
-      console.error("Erreur mise à jour Google:", errorData);
-      throw new Error("Erreur API Google");
-    }
-  } catch (err) {
-    console.error(err);
-    showToast("Échec de la synchronisation Google", "error");
-    // Optionnel : recharger les événements pour annuler le changement visuel
+    if (!response.ok) throw new Error('Erreur lors de la mise à jour Google Calendar');
+    
+    // Rafraîchir le calendrier pour voir le nouveau titre
     fetchGoogleEvents();
+    return true;
+  } catch (error) {
+    console.error('Erreur updateGoogleEvent:', error);
+    return false;
   }
 }
 
@@ -1319,7 +1309,7 @@ function openTaskDialog(taskId = "") {
   const dialog = document.querySelector("#taskDialog");
   if (!dialog) return;
 
-  // Réinitialiser les champs de planification
+  // Réinitialiser les champs de planification et IDs Google
   const planningFields = document.getElementById('calendarPlanningFields');
   if (planningFields) planningFields.style.display = 'none';
   const startInput = document.getElementById('quickStartTime');
@@ -1328,6 +1318,9 @@ function openTaskDialog(taskId = "") {
   if (endInput) endInput.value = "";
 
   document.querySelector("#editingTaskId").value = task?.id || "";
+  document.querySelector("#editingGoogleEventId").value = "";
+  document.querySelector("#editingGoogleCalendarId").value = "";
+  
   document.querySelector("#taskDialogKicker").textContent = task ? "Édition" : "Capture rapide";
   document.querySelector("#taskDialogTitle").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
   document.querySelector("#quickTitle").value = task?.title || "";
@@ -1432,10 +1425,20 @@ function initEventListeners() {
       const end = new Date(`${dueDate}T${endTimeStr}`);
       const fullTask = state.tasks.find(t => t.id === (id || taskRef.id));
       
-      const success = await createGoogleEvent(fullTask, start, end);
-      if (success) {
-        showToast("Événement créé sur Google Calendar", "success");
-        fetchGoogleEvents(); // Rafraîchir le calendrier
+      const gEventId = document.querySelector("#editingGoogleEventId").value;
+      const gCalId = document.querySelector("#editingGoogleCalendarId").value;
+      
+      if (gEventId && gCalId) {
+        // On met à jour l'événement existant
+        await updateGoogleEvent(gCalId, gEventId, fullTask, start, end);
+        showToast("Événement mis à jour sur Google Calendar", "success");
+      } else {
+        // Nouveau : On crée un événement
+        const success = await createGoogleEvent(fullTask, start, end);
+        if (success) {
+          showToast("Événement créé sur Google Calendar", "success");
+          fetchGoogleEvents(); // Rafraîchir le calendrier
+        }
       }
     }
 
