@@ -720,25 +720,33 @@ async function fetchGoogleEvents() {
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     startOfWeek.setHours(0, 0, 0, 0);
 
-    // 1. Récupérer la liste des agendas pour trouver l'ID de "Decathlon - sync"
+    // 1. Récupérer la liste des agendas
     const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
       headers: { 'Authorization': `Bearer ${googleAccessToken}` }
     });
     const listData = await listResponse.json();
     
+    console.log("Liste des agendas trouvés :", listData.items?.map(c => c.summary));
+    
     const calendarsToFetch = [
       { id: 'primary', name: 'Principal', color: 'var(--surface-3)', borderColor: 'var(--context-accent)' }
     ];
 
-    const decathlonCal = (listData.items || []).find(cal => cal.summary === 'Decathlon - sync');
+    // Recherche plus souple (sans espaces superflus et sans majuscules)
+    const decathlonCal = (listData.items || []).find(cal => 
+      cal.summary.trim().toLowerCase().includes('decathlon')
+    );
+
     if (decathlonCal) {
       calendarsToFetch.push({
         id: decathlonCal.id,
-        name: 'Decathlon',
+        name: decathlonCal.summary,
         color: '#007abd', // Bleu Decathlon
         borderColor: '#005d8f'
       });
-      console.log("Agenda Decathlon trouvé !");
+      console.log("Agenda Decathlon trouvé :", decathlonCal.summary);
+    } else {
+      console.warn("Agenda Decathlon non trouvé dans la liste.");
     }
 
     // 2. Récupérer les événements de tous les agendas sélectionnés
