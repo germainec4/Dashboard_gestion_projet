@@ -909,28 +909,22 @@ async function fetchGoogleEvents() {
         const sourceClass = isDecathlon ? 'fc-event-source-decathlon' : 'fc-event-source-primary';
         const hasLimitedAccess = cal.accessRole === 'freeBusyReader';
 
+        // Nettoyage complet du titre (emojis + préfixes de synchro)
+        let cleanTitle = summary.replace(/^[☐✅]\s*/, "");
+        cleanTitle = cleanTitle.replace(/^Travail sur\s*:\s*/i, "");
+        cleanTitle = cleanTitle.replace(/^Working on\s*:\s*/i, "");
+        cleanTitle = cleanTitle.trim();
+
         // Détection des tâches Google (☐ / ✅)
         const isGoogleTask = summary.startsWith('☐') || summary.startsWith('✅');
         const isTaskCompleted = summary.startsWith('✅');
-        const cleanTitle = summary.replace(/^[☐✅]\s*/, "");
 
         // Détection du pilier
         let pillarClass = '';
         if (isDecathlon) {
           pillarClass = 'fc-event-pillar-engineer'; // Decathlon = IET par défaut
         } else {
-          // Chercher si le titre correspond à une tâche connue pour le pilier
-          let matchedTask = null;
-          if (cleanTitle.startsWith("Travail sur : ")) {
-            const taskTitle = cleanTitle.replace("Travail sur : ", "").trim();
-            matchedTask = state.tasks.find(t => t.title === taskTitle);
-          }
-          if (!matchedTask) {
-            matchedTask = state.tasks.find(t => t.title === cleanTitle);
-          }
-          if (matchedTask) {
-            pillarClass = `fc-event-pillar-${matchedTask.pillar.toLowerCase()}`;
-          }
+          // Si on n'est pas chez Decathlon, on essaiera de définir le pilier après avoir cherché la tâche locale
         }
 
         const displayTitle = cleanTitle || (hasLimitedAccess ? "Occupé (Accès limité)" : "(Sans titre)");
@@ -948,6 +942,11 @@ async function fetchGoogleEvents() {
           const searchTitle = displayTitle.trim().toLowerCase();
           localTask = state.tasks.find(t => t.title.trim().toLowerCase() === searchTitle);
           if (localTask) localTaskId = localTask.id;
+        }
+
+        // 3. Définir le pilier si on a trouvé une tâche locale
+        if (localTask && !isDecathlon) {
+          pillarClass = `fc-event-pillar-${localTask.pillar.toLowerCase()}`;
         }
 
         return {
