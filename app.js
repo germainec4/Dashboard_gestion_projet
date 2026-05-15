@@ -641,6 +641,8 @@ function initCalendar() {
     locale: 'fr',
     slotMinTime: '00:00:00',
     slotMaxTime: '24:00:00',
+    slotDuration: '00:15:00',
+    snapDuration: '00:15:00',
     scrollTime: '08:00:00',
     editable: true,
     droppable: true,
