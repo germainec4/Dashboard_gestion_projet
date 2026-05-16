@@ -1765,7 +1765,13 @@ option {
 
 /* Zoom : slots plus hauts pour mieux voir les événements */
 .fc .fc-timegrid-slot {
-  height: 1.1em;
+  height: 2.2em; /* Augmenté car on a moins de lignes */
+  border-bottom: none !important;
+}
+
+/* Lignes de demi-heure en pointillés */
+.fc .fc-timegrid-slot-minor {
+  border-top: 1px dashed var(--border-soft) !important;
 }
 
 .fc .fc-timegrid-header .fc-scroller {
