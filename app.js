@@ -1617,6 +1617,7 @@ function initEventListeners() {
     document.querySelector("#projectDialog h2").textContent = "Nouveau projet";
     document.querySelector("#projectDialog").showModal();
     document.body.classList.add('dialog-open');
+  });
   safeListen("#projectForm", "submit", async (e) => {
     if (e.submitter?.value === "cancel") return;
     e.preventDefault();
