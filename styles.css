@@ -2084,3 +2084,39 @@ option {
   border-color: #bb2d3b;
   transform: translateY(-1px);
 }
+
+/* Feedback pour la navigation au survol pendant le drag */
+.fc-button-dragover {
+  background-color: var(--blue) !important;
+  border-color: var(--white) !important;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(50, 145, 255, 0.4);
+  z-index: 10;
+}
+
+/* Ajustements pour la vue mois (FullCalendar) */
+.fc-dayGridMonth-view .fc-event {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.fc-dayGridMonth-view .fc-daygrid-day-number {
+  font-size: 0.9em;
+  color: var(--muted);
+  padding: 8px;
+  text-decoration: none;
+}
+
+.fc-dayGridMonth-view .fc-col-header-cell-cushion {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 0;
+  text-decoration: none;
+}
+
+.fc-dayGridMonth-view .fc-daygrid-event-h-inner {
+  border-radius: 3px;
+}

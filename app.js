@@ -651,7 +651,7 @@ function initCalendar() {
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'timeGridWeek,timeGridDay'
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
     },
     firstDay: 1, // Lundi
     locale: 'fr',
@@ -729,10 +729,28 @@ function initCalendar() {
       }
     },
     eventDrop: async (info) => {
-      await updateGoogleEvent(info.event);
+      const { event } = info;
+      const gEvent = event.extendedProps.googleEvent;
+      if (gEvent && googleAccessToken) {
+        const task = {
+          id: event.extendedProps.localTaskId,
+          title: event.title,
+          description: event.extendedProps.description || ""
+        };
+        await updateGoogleEvent(gEvent.calendarId || 'primary', gEvent.id, task, event.start, event.end || event.start);
+      }
     },
     eventResize: async (info) => {
-      await updateGoogleEvent(info.event);
+      const { event } = info;
+      const gEvent = event.extendedProps.googleEvent;
+      if (gEvent && googleAccessToken) {
+        const task = {
+          id: event.extendedProps.localTaskId,
+          title: event.title,
+          description: event.extendedProps.description || ""
+        };
+        await updateGoogleEvent(gEvent.calendarId || 'primary', gEvent.id, task, event.start, event.end || event.start);
+      }
     },
     selectable: true,
     selectMirror: true,
@@ -744,6 +762,37 @@ function initCalendar() {
   });
 
   calendar.render();
+  
+  // --- Navigation au survol pendant le Drag (Style Google Calendar) ---
+  let navTimeout = null;
+  const toolbar = calendarEl.querySelector('.fc-header-toolbar');
+  if (toolbar) {
+    const navButtons = toolbar.querySelectorAll('.fc-prev-button, .fc-next-button');
+    navButtons.forEach(btn => {
+      // Pour les tâches externes
+      btn.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        btn.classList.add('fc-button-dragover');
+        if (!navTimeout) {
+          navTimeout = setTimeout(() => {
+            if (btn.classList.contains('fc-next-button')) calendar.next();
+            else calendar.prev();
+            navTimeout = null;
+          }, 800);
+        }
+      });
+      btn.addEventListener('dragleave', () => {
+        btn.classList.remove('fc-button-dragover');
+        clearTimeout(navTimeout);
+        navTimeout = null;
+      });
+      btn.addEventListener('drop', () => {
+        btn.classList.remove('fc-button-dragover');
+        clearTimeout(navTimeout);
+        navTimeout = null;
+      });
+    });
+  }
   
   // Initialiser le Drag & Drop des tâches externes
   new FullCalendar.Draggable(document.getElementById('externalTasksList'), {
