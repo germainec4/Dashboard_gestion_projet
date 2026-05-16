@@ -680,12 +680,23 @@ function initCalendar() {
   
   console.log("Initialisation de FullCalendar...");
 
+  const isMobile = window.innerWidth < 768;
+
   calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'timeGridWeek',
+    initialView: isMobile ? 'timeGridTwoDay' : 'timeGridWeek',
+    views: {
+      timeGridTwoDay: {
+        type: 'timeGrid',
+        duration: { days: 2 },
+        buttonText: '2 jours'
+      }
+    },
     headerToolbar: {
-      left: 'prev,next today',
+      left: isMobile ? 'prev,next' : 'prev,next today',
       center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      right: isMobile 
+        ? 'dayGridMonth,timeGridTwoDay,timeGridDay' 
+        : 'dayGridMonth,timeGridWeek,timeGridDay'
     },
     firstDay: 1, // Lundi
     locale: 'fr',
@@ -801,6 +812,30 @@ function initCalendar() {
   });
 
   calendar.render();
+
+  // Ajout du support du swipe pour mobile
+  if (isMobile) {
+    let touchstartX = 0;
+    let touchendX = 0;
+    
+    calendarEl.addEventListener('touchstart', e => {
+      touchstartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    
+    calendarEl.addEventListener('touchend', e => {
+      touchendX = e.changedTouches[0].screenX;
+      const swipeDistance = touchendX - touchstartX;
+      
+      // Seuil de 70px pour éviter les déclenchements accidentels
+      if (Math.abs(swipeDistance) > 70) {
+        if (swipeDistance < 0) {
+          calendar.next();
+        } else {
+          calendar.prev();
+        }
+      }
+    }, { passive: true });
+  }
   
   // --- Navigation intelligente pendant le Drag (Style Google Calendar) ---
   let navTimeout = null;

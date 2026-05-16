@@ -2148,3 +2148,50 @@ option {
   border-radius: 3px;
 }
 
+/* --- Responsive Calendar Mobile --- */
+@media (max-width: 768px) {
+  .fc .fc-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .fc .fc-toolbar-title {
+    font-size: 1.1em !important;
+    text-align: center;
+  }
+  
+  .fc .fc-button {
+    padding: 0.4em 0.6em !important;
+    font-size: 13px !important;
+  }
+  
+  /* Masquer le texte original et afficher les initiales */
+  .fc .fc-dayGridMonth-button,
+  .fc .fc-timeGridWeek-button,
+  .fc .fc-timeGridDay-button,
+  .fc .fc-timeGridTwoDay-button {
+    font-size: 0 !important;
+    min-width: 32px;
+  }
+  
+  .fc .fc-dayGridMonth-button::after { content: "M"; font-size: 13px; }
+  .fc .fc-timeGridWeek-button::after { content: "W"; font-size: 13px; }
+  .fc .fc-timeGridDay-button::after { content: "D"; font-size: 13px; }
+  .fc .fc-timeGridTwoDay-button::after { content: "2J"; font-size: 13px; }
+  
+  /* Ajustement de la grille pour gagner de la place */
+  .fc-timegrid-axis-cushion, 
+  .fc-timegrid-slot-label-cushion {
+    font-size: 10px !important;
+  }
+  
+  .fc .fc-col-header-cell-cushion {
+    font-size: 11px !important;
+  }
+  
+  /* Permettre le scroll vertical tout en capturant les swipes horizontaux */
+  #calendar {
+    touch-action: pan-y;
+  }
+}
+
