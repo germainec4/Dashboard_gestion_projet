@@ -1694,10 +1694,22 @@ function initEventListeners() {
     }
   });
 
+  const tabGroup = document.querySelector(".view-tabs-group");
+  const updateTabIndicator = () => {
+    const activeTab = tabGroup?.querySelector(".tab-button.active");
+    if (!tabGroup || !activeTab) return;
+    tabGroup.style.setProperty("--tab-indicator-left", `${activeTab.offsetLeft}px`);
+    tabGroup.style.setProperty("--tab-indicator-width", `${activeTab.offsetWidth}px`);
+  };
+
+  updateTabIndicator();
+  window.addEventListener("resize", updateTabIndicator);
+
   document.querySelectorAll(".tab-button").forEach(btn => {
     btn.addEventListener("click", () => {
       currentView = btn.dataset.view;
       document.querySelectorAll(".tab-button").forEach(b => b.classList.toggle("active", b === btn));
+      updateTabIndicator();
       document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === `${currentView}View`));
       render();
     });

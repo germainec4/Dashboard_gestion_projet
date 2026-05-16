@@ -358,6 +358,20 @@ textarea:focus {
 .view-tabs-group {
   display: flex;
   gap: 4px;
+  position: relative;
+  --tab-indicator-left: 0px;
+  --tab-indicator-width: 0px;
+}
+
+.view-tabs-group::after {
+  content: "";
+  position: absolute;
+  left: var(--tab-indicator-left);
+  bottom: -1px;
+  width: var(--tab-indicator-width);
+  height: 1px;
+  background: var(--context-accent);
+  transition: left 220ms ease, width 220ms ease;
 }
 
 .view-tabs .topbar-actions {
@@ -369,7 +383,6 @@ textarea:focus {
   align-items: center;
   min-height: 44px;
   border: 0;
-  border-bottom: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   padding: 0 14px;
@@ -378,7 +391,6 @@ textarea:focus {
 }
 
 .tab-button.active {
-  border-color: var(--context-accent);
   color: var(--text);
 }
 
