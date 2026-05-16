@@ -16,6 +16,7 @@ let chartGoals = null;
 let quarterlyGoals = JSON.parse(localStorage.getItem('quarterlyGoals') || '{}');
 let lastFilteredMissions = []; // Pour rafraîchir un seul graph sans l'autre
 let qontoBalanceCents = null;
+let potentialPayments = []; // Stockage temporaire des matches Qonto potentiels
 // Default goals if empty
 if (Object.keys(quarterlyGoals).length === 0) {
   quarterlyGoals = { 
@@ -152,6 +153,21 @@ function renderKPIs() {
   const soldeTotal = paidURSSAF + paidImpots;
   animateCounter('soldeTotal', soldeTotal);
   updateQontoCoverageIcon(soldeTotal);
+
+  // Verso de la carte "Paiement en attente" (Solde Qonto + Salaire d'avance)
+  const qontoBalance = qontoBalanceCents !== null ? qontoBalanceCents / 100 : 0;
+  animateCounter('kpi-qonto-balance', qontoBalance);
+  
+  const advanceEl = document.getElementById('kpi-salary-advance');
+  if (advanceEl) {
+    if (qontoBalanceCents === null) {
+      advanceEl.textContent = "Solde indisponible";
+    } else {
+      const remainingForSalary = qontoBalance - soldeTotal;
+      const monthsAdvance = Math.max(0, remainingForSalary / 2200);
+      advanceEl.textContent = `${monthsAdvance.toFixed(1)} mois de salaire d'avance`;
+    }
+  }
 
   // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===
   let chartMissions = [];
@@ -409,9 +425,10 @@ function initEventListeners() {
           throw error;
         }
         
-        if (data.results.matched > 0) {
-          showToast(`${data.results.matched} mission(s) marquée(s) comme payée(s) !`, "success");
-          await loadData();
+        if (data.potentialMatches && data.potentialMatches.length > 0) {
+          potentialPayments = data.potentialMatches;
+          renderPotentialMatchesBanner();
+          showToast(`${data.potentialMatches.length} paiement(s) potentiel(s) détecté(s) !`, "info");
         } else {
           showToast("Aucun nouveau paiement détecté.", "info");
         }
@@ -838,6 +855,68 @@ function animateCounter(elementId, targetValue) {
   }
   
   requestAnimationFrame(update);
+}
+
+// === POTENTIAL MATCHES LOGIC ===
+function renderPotentialMatchesBanner() {
+  const container = document.getElementById('potentialMatchesBanner');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (potentialPayments.length === 0) return;
+  
+  potentialPayments.forEach((match, index) => {
+    const banner = document.createElement('div');
+    banner.className = 'potential-match-banner';
+    banner.innerHTML = `
+      <div class="match-info">
+        <span class="match-title">Paiement potentiel : ${escapeHTML(match.mission_title)}</span>
+        <span class="match-details">
+          Virement de <strong>${formatCurrency(match.amount)}</strong> reçu le ${new Date(match.transaction_date).toLocaleDateString('fr-FR')} 
+          <br><small>Libellé : ${escapeHTML(match.transaction_label)}</small>
+        </span>
+      </div>
+      <div class="match-actions">
+        <button class="btn-validate" data-index="${index}">Valider le paiement</button>
+        <button class="btn-ignore" data-index="${index}">Ignorer</button>
+      </div>
+    `;
+    
+    banner.querySelector('.btn-validate').onclick = () => validatePotentialMatch(index);
+    banner.querySelector('.btn-ignore').onclick = () => ignorePotentialMatch(index);
+    
+    container.appendChild(banner);
+  });
+}
+
+async function validatePotentialMatch(index) {
+  const match = potentialPayments[index];
+  if (!match) return;
+  
+  try {
+    const { error } = await supabase.from('missions').update({
+      status: 'payee',
+      date_payment: match.transaction_date,
+      qonto_id: match.transaction_id,
+      bank_label: match.transaction_label
+    }).eq('id', match.mission_id);
+    
+    if (error) throw error;
+    
+    showToast(`Paiement validé pour "${match.mission_title}"`, "success");
+    potentialPayments.splice(index, 1);
+    renderPotentialMatchesBanner();
+    await loadData();
+  } catch (err) {
+    console.error("Erreur validation paiement:", err);
+    showToast("Erreur lors de la validation", "error");
+  }
+}
+
+function ignorePotentialMatch(index) {
+  potentialPayments.splice(index, 1);
+  renderPotentialMatchesBanner();
 }
 
 function formatCurrency(amount) {

@@ -111,103 +111,47 @@ Deno.serve(async (req) => {
     console.log(`Missions en attente: ${pendingMissions?.length ?? 0}`)
     console.log(`IDs Qonto déjà utilisés: ${usedQontoIds.size}`)
 
-    const updates = []
-    const results = { matched: 0, processed: transactions.length }
+    const potentialMatches = []
+    const processedTxIds = new Set()
 
-    // 6. Logique de Matching Robuste
+    // 6. Logique de Matching
     for (const tx of transactions) {
       const qontoAmount = parseFloat(tx.amount.toString())
       const txDate = tx.settled_at.split('T')[0]
       const txId = tx.transaction_id
 
-      // SÉCURITÉ : Si ce virement a déjà été utilisé pour une mission, on l'ignore
-      if (usedQontoIds.has(txId)) {
-        console.log(`Transaction ${txId} déjà traitée par le passé. Skip.`)
-        continue
-      }
+      if (usedQontoIds.has(txId)) continue
       
-      // On combine Label et Référence pour avoir le maximum d'infos (ex: "Malt" + "Facture #123")
       const fullLabel = `${tx.label} ${tx.reference || ''}`.trim()
-      const searchString = fullLabel.toLowerCase()
-
-      console.log(`Analyse transaction Qonto: ${fullLabel} | Montant: ${qontoAmount}€`)
 
       // Trouver toutes les missions qui correspondent au montant
-      const potentialMatches = pendingMissions.filter(m => {
+      const matches = pendingMissions.filter(m => {
         const missionPrice = parseFloat(m.price.toString())
-        const isAlreadyMatched = updates.find(u => u.id === m.id)
-        return Math.abs(missionPrice - qontoAmount) < 0.01 && !isAlreadyMatched
+        return Math.abs(missionPrice - qontoAmount) < 0.01
       })
 
-      let finalMatch = null
-
-      if (potentialMatches.length === 1) {
-        // Un seul match par montant, on valide
-        finalMatch = potentialMatches[0]
-      } else if (potentialMatches.length > 1) {
-        // Plusieurs missions au même montant ! On doit départager par le texte
-        console.log(`Conflit : ${potentialMatches.length} missions trouvées pour ${qontoAmount}€. Recherche dans "${fullLabel}"...`)
-        
-        finalMatch = potentialMatches.find(m => {
-          const title = m.title.toLowerCase()
-          const client = (m.client || '').toLowerCase()
-          const ref = (m.external_ref || '').toLowerCase()
-          
-          // 1. Match direct par ID (si déjà lié auparavant ou via Réf)
-          if (m.qonto_id === txId || m.external_ref === txId) return true
-          
-        // 2. Match par texte intelligent (Mots-clés)
-          if (title) {
-            // On nettoie le titre pour extraire les mots significatifs
-            const keywords = title
-              .replace(/[:.,!?-]/g, ' ') // Enlever la ponctuation
-              .split(' ')
-              .filter(word => word.length > 3) // Garder les mots de plus de 3 lettres
-              .filter(word => !['test', 'mission', 'projet'].includes(word.toLowerCase())) // Ignorer les mots génériques
-            
-            // Si l'un des mots-clés du titre est dans le libellé Qonto
-            const hasKeywordMatch = keywords.some(word => searchString.includes(word.toLowerCase()))
-            if (hasKeywordMatch) return true
-          }
-
-          // 3. Match par client ou référence externe
-          return (ref && searchString.includes(ref)) || 
-                 (client && searchString.includes(client))
-        })
-
-        if (!finalMatch) {
-          console.warn(`Impossible de départager les missions pour le virement de ${qontoAmount}€. Aucune mise à jour effectuée.`)
-          continue
-        }
-      }
-
-      if (finalMatch) {
-        console.log(`Match validé ! Mission "${finalMatch.title}" correspond au virement de ${qontoAmount}€`)
-        const { error: updateError } = await supabase
-          .from('missions')
-          .update({ 
-            status: 'payee', 
-            date_payment: txDate,
-            qonto_id: txId,
-            bank_label: fullLabel // On stocke le libellé complet pour historique
+      if (matches.length > 0) {
+        matches.forEach(m => {
+          potentialMatches.push({
+            mission_id: m.id,
+            mission_title: m.title,
+            mission_status: m.status,
+            transaction_id: txId,
+            transaction_label: fullLabel,
+            transaction_date: txDate,
+            amount: qontoAmount
           })
-          .eq('id', finalMatch.id)
-
-        if (!updateError) {
-          updates.push({ id: finalMatch.id, title: finalMatch.title, amount: qontoAmount })
-          results.matched++
-        } else {
-          console.error(`Erreur update mission ${finalMatch.id}:`, updateError)
-        }
+        })
+        processedTxIds.add(txId)
       }
     }
 
-    console.log(`Synchronisation terminée. Matches: ${results.matched} / Processed: ${transactions.length}`)
+    console.log(`Synchronisation terminée. Potentiels: ${potentialMatches.length} / Transactions traitées: ${processedTxIds.size}`)
     
     return new Response(JSON.stringify({ 
-      message: 'Synchronisation terminée', 
-      results,
-      updates 
+      message: 'Recherche terminée', 
+      potentialMatches,
+      count: potentialMatches.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

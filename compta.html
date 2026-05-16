@@ -282,9 +282,9 @@
         .switch-goal input:checked + .slider:before {
           transform: translateX(14px);
         }
-        /* Flip Card URSSAF Only */
+        /* Flip Card Base Styles */
         .metric-card-container {
-          height: 115px; /* Aligné sur les autres cartes */
+          height: 115px;
           position: relative;
           cursor: pointer;
           perspective: 1000px;
@@ -312,7 +312,6 @@
           border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .metric-card-front {
-          border-top: 3px solid #e53e3e;
           display: flex;
           flex-direction: column;
           justify-content: center;
@@ -322,8 +321,6 @@
 
         .metric-card-back {
           transform: rotateY(180deg);
-          background: linear-gradient(135deg, #1a0a0a 0%, #050505 100%);
-          border: 1px solid rgba(229, 62, 62, 0.2);
           display: flex;
           flex-direction: column;
           justify-content: center;
@@ -332,17 +329,36 @@
         }
         .metric-card-back h4 {
           font-size: 0.7rem;
-          color: #e53e3e;
           text-transform: uppercase;
           margin: 0;
           letter-spacing: 1px;
         }
-        .metric-card-back .solde-total {
+        .metric-card-back .solde-total, .metric-card-back .back-value {
           font-size: 1.3rem;
           font-weight: 700;
           color: #fff;
           margin: 4px 0;
         }
+        .metric-card-back .solde-desc {
+          font-size: 0.7rem;
+          color: rgba(255,255,255,0.4);
+        }
+
+        /* Themes for Flip Cards */
+        .theme-red .metric-card-front { border-top: 3px solid #e53e3e; }
+        .theme-red .metric-card-back { 
+          background: linear-gradient(135deg, #1a0a0a 0%, #050505 100%);
+          border: 1px solid rgba(229, 62, 62, 0.2);
+        }
+        .theme-red .metric-card-back h4 { color: #e53e3e; }
+
+        .theme-teal .metric-card-front { border-top: 3px solid #319795; }
+        .theme-teal .metric-card-back { 
+          background: linear-gradient(135deg, #0a1a1a 0%, #050505 100%);
+          border: 1px solid rgba(49, 151, 149, 0.2);
+        }
+        .theme-teal .metric-card-back h4 { color: #319795; }
+
         .solde-total-row {
           display: flex;
           align-items: center;
@@ -361,10 +377,6 @@
         }
         .qonto-coverage-icon.is-visible {
           display: block;
-        }
-        .metric-card-back .solde-desc {
-          font-size: 0.7rem;
-          color: rgba(255,255,255,0.4);
         }
 
         .flip-hint {
@@ -559,6 +571,71 @@
       </style>
 
       <main class="compta-dashboard">
+        <div id="potentialMatchesBanner" class="potential-matches-container"></div>
+
+        <style>
+          .potential-matches-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+          }
+          .potential-match-banner {
+            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #3291ff;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px;
+            animation: slideDown 0.4s ease-out;
+            box-shadow: 0 4px 15px rgba(50, 145, 255, 0.2);
+          }
+          @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          .match-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+          }
+          .match-title {
+            font-weight: 700;
+            color: #3291ff;
+            font-size: 1.1rem;
+          }
+          .match-details {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+          }
+          .match-actions {
+            display: flex;
+            gap: 0.75rem;
+          }
+          .btn-validate {
+            background: #2f855a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+          }
+          .btn-validate:hover { background: #38a169; transform: scale(1.05); }
+          .btn-ignore {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .btn-ignore:hover { border-color: var(--text-muted); color: var(--text); }
+        </style>
+
         <div class="section-header-row" style="margin-bottom: 1.5rem;">
           <div>
             <p class="section-kicker">Performance financière</p>
@@ -582,7 +659,7 @@
             <h3 id="kpi-ca">0,00 €</h3>
           </div>
 
-          <div class="metric-card-container" onclick="this.classList.toggle('flipped')">
+          <div class="metric-card-container theme-red" onclick="this.classList.toggle('flipped')">
             <div class="flip-card-inner">
               <div class="metric-card-front">
                 <p>URSSAF Estimé</p>
@@ -607,9 +684,19 @@
             <h3 id="kpi-impots">0,00 €</h3>
           </div>
 
-          <div class="metric-card" style="border-top: 3px solid #319795;">
-            <p>Paiements en attente</p>
-            <h3 id="kpi-reste">0,00 €</h3>
+          <div class="metric-card-container theme-teal" onclick="this.classList.toggle('flipped')">
+            <div class="flip-card-inner">
+              <div class="metric-card-front">
+                <p>Paiements en attente</p>
+                <h3 id="kpi-reste">0,00 €</h3>
+                <span class="flip-hint">Détails ↺</span>
+              </div>
+              <div class="metric-card-back">
+                <h4>Solde Qonto</h4>
+                <p class="back-value" id="kpi-qonto-balance">0,00 €</p>
+                <p class="solde-desc" id="kpi-salary-advance">Chargement...</p>
+              </div>
+            </div>
           </div>
         </section>
 
