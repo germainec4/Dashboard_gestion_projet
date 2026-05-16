@@ -15,6 +15,7 @@ let chartEvolution = null;
 let chartGoals = null;
 let quarterlyGoals = JSON.parse(localStorage.getItem('quarterlyGoals') || '{}');
 let lastFilteredMissions = []; // Pour rafraîchir un seul graph sans l'autre
+let qontoBalanceCents = null;
 // Default goals if empty
 if (Object.keys(quarterlyGoals).length === 0) {
   quarterlyGoals = { 
@@ -65,6 +66,7 @@ async function init() {
   }
 
   await loadData();
+  refreshQontoBalance();
   initEventListeners();
   initCharts();
 }
@@ -147,7 +149,9 @@ function renderKPIs() {
 
   // Animation du solde combiné au verso de la carte URSSAF
   const paidImpots = Math.max(0, (paidTurnoverForTax - IMPOT_SEUIL) * IMPOT_TAUX);
-  animateCounter('soldeTotal', paidURSSAF + paidImpots);
+  const soldeTotal = paidURSSAF + paidImpots;
+  animateCounter('soldeTotal', soldeTotal);
+  updateQontoCoverageIcon(soldeTotal);
 
   // === FILTRAGE POUR LES GRAPHIQUES (Par année entière des trimestres sélectionnés) ===
   let chartMissions = [];
@@ -176,6 +180,38 @@ function renderKPIs() {
   } else {
     label.textContent = `${selectedValues.length} trimestres`;
   }
+}
+
+async function refreshQontoBalance() {
+  if (!supabase) return;
+
+  try {
+    const { data, error } = await supabase.functions.invoke('qonto-balance');
+    if (error) throw error;
+
+    qontoBalanceCents = Number(data?.authorized_balance_cents ?? data?.balance_cents ?? 0);
+    renderKPIs();
+  } catch (err) {
+    qontoBalanceCents = null;
+    updateQontoCoverageIcon(0);
+    console.warn("Solde Qonto indisponible:", err);
+  }
+}
+
+function updateQontoCoverageIcon(soldeTotal) {
+  const icon = document.getElementById('qontoCoverageIcon');
+  if (!icon) return;
+
+  const requiredCents = Math.round(soldeTotal * 100);
+  const hasCoverage = qontoBalanceCents !== null && requiredCents > 0 && qontoBalanceCents >= requiredCents;
+
+  icon.classList.toggle('is-visible', hasCoverage);
+  icon.setAttribute(
+    'title',
+    hasCoverage
+      ? 'Solde disponible sur Qonto'
+      : 'Solde Qonto insuffisant ou indisponible'
+  );
 }
 
 function populateKPIFilter() {

@@ -343,6 +343,25 @@
           color: #fff;
           margin: 4px 0;
         }
+        .solde-total-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          min-height: 32px;
+        }
+        .qonto-coverage-icon {
+          display: none;
+          width: 18px;
+          height: 18px;
+          color: #fff;
+          opacity: 0.85;
+          flex: 0 0 auto;
+          filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.22));
+        }
+        .qonto-coverage-icon.is-visible {
+          display: block;
+        }
         .metric-card-back .solde-desc {
           font-size: 0.7rem;
           color: rgba(255,255,255,0.4);
@@ -572,7 +591,12 @@
               </div>
               <div class="metric-card-back">
                 <h4>Solde Total à avoir</h4>
-                <p class="solde-total" id="soldeTotal">0,00 €</p>
+                <div class="solde-total-row">
+                  <p class="solde-total" id="soldeTotal">0,00 €</p>
+                  <svg id="qontoCoverageIcon" class="qonto-coverage-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-label="Disponible sur Qonto" role="img">
+                    <path d="M20 6 9 17l-5-5"/>
+                  </svg>
+                </div>
                 <p class="solde-desc">URSSAF + Impôts (Missions payées)</p>
               </div>
             </div>
