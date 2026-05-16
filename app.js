@@ -1177,6 +1177,7 @@ function showEventDetails(event) {
   const modal = document.getElementById('eventDetailsModal');
   if (modal.showModal) {
     modal.showModal();
+    document.body.classList.add('dialog-open');
   } else {
     modal.classList.add('active');
   }
@@ -1264,6 +1265,7 @@ function showConfirm(title, message, confirmLabel = "Supprimer") {
     cancelBtn.onclick = () => cleanup(false);
     
     dialog.showModal();
+    document.body.classList.add('dialog-open');
   });
 }
 
@@ -1486,6 +1488,7 @@ function openTaskDialog(taskId = "") {
   document.querySelector("#quickDueDate").value = task?.dueDate || "";
 
   dialog.showModal();
+  document.body.classList.add('dialog-open');
 }
 
 function openTaskDialogFromCalendar(start, end) {
@@ -1516,6 +1519,7 @@ function openProjectDetail(id) {
 
   renderProjectTasks(id);
   dialog.showModal();
+  document.body.classList.add('dialog-open');
 }
 
 function renderProjectTasks(projectId) {
@@ -1612,7 +1616,7 @@ function initEventListeners() {
     document.querySelector("#projectForm").reset();
     document.querySelector("#projectDialog h2").textContent = "Nouveau projet";
     document.querySelector("#projectDialog").showModal();
-  });
+    document.body.classList.add('dialog-open');
   safeListen("#projectForm", "submit", async (e) => {
     if (e.submitter?.value === "cancel") return;
     e.preventDefault();
@@ -1650,6 +1654,7 @@ function initEventListeners() {
 
     document.querySelector("#projectDialog h2").textContent = "Modifier le projet";
     document.querySelector("#projectDialog").showModal();
+    document.body.classList.add('dialog-open');
   });
 
   safeListen("#deleteProjectButton", "click", async () => {
