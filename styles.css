@@ -1768,6 +1768,10 @@ option {
   height: 1.1em;
 }
 
+.fc .fc-timegrid-header .fc-scroller {
+  overflow-y: hidden !important;
+}
+
 .fc-theme-standard td, .fc-theme-standard th {
   border-color: var(--border-soft) !important;
 }
