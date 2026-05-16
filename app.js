@@ -532,6 +532,36 @@ function projectCard(project) {
   const totalTasks = projectTasks.length;
   const nextAction = state.tasks.find(t => t.projectId === project.id && t.status !== "done");
 
+  // Compute "Objectif : J-X" based on dueDate
+  let deadlineBadge = '';
+  if (project.dueDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(project.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+
+    let badgeClass = 'normal';
+    let label = '';
+    if (diffDays < 0) {
+      badgeClass = 'overdue';
+      label = `Objectif : J+${Math.abs(diffDays)}`;
+    } else if (diffDays === 0) {
+      badgeClass = 'urgent';
+      label = `Objectif : Jour J`;
+    } else if (diffDays <= 3) {
+      badgeClass = 'urgent';
+      label = `Objectif : J-${diffDays}`;
+    } else if (diffDays <= 10) {
+      badgeClass = 'warning';
+      label = `Objectif : J-${diffDays}`;
+    } else {
+      badgeClass = 'normal';
+      label = `Objectif : J-${diffDays}`;
+    }
+    deadlineBadge = `<span class="deadline-badge ${badgeClass}">${label}</span>`;
+  }
+
   return `
     <article class="project-card" data-action="open-project" data-id="${project.id}">
       <div class="project-top">
@@ -541,7 +571,7 @@ function projectCard(project) {
             <span>${doneTasks} / ${totalTasks} tâches complétées</span>
           </div>
         </div>
-        ${project.dueDate ? `<span class="deadline-badge">${project.dueDate}</span>` : ''}
+        ${deadlineBadge}
       </div>
       <p class="muted" style="font-size: 13px; margin: 8px 0;">${escapeHTML(project.doneDefinition || '')}</p>
       <div class="meta-row">
@@ -651,7 +681,7 @@ function initCalendar() {
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'timeGridWeek,timeGridDay'
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
     },
     firstDay: 1, // Lundi
     locale: 'fr',
@@ -729,10 +759,28 @@ function initCalendar() {
       }
     },
     eventDrop: async (info) => {
-      await updateGoogleEvent(info.event);
+      const { event } = info;
+      const gEvent = event.extendedProps.googleEvent;
+      if (gEvent && googleAccessToken) {
+        const task = {
+          id: event.extendedProps.localTaskId,
+          title: event.title,
+          description: event.extendedProps.description || ""
+        };
+        await updateGoogleEvent(gEvent.calendarId || 'primary', gEvent.id, task, event.start, event.end || event.start);
+      }
     },
     eventResize: async (info) => {
-      await updateGoogleEvent(info.event);
+      const { event } = info;
+      const gEvent = event.extendedProps.googleEvent;
+      if (gEvent && googleAccessToken) {
+        const task = {
+          id: event.extendedProps.localTaskId,
+          title: event.title,
+          description: event.extendedProps.description || ""
+        };
+        await updateGoogleEvent(gEvent.calendarId || 'primary', gEvent.id, task, event.start, event.end || event.start);
+      }
     },
     selectable: true,
     selectMirror: true,
@@ -744,6 +792,78 @@ function initCalendar() {
   });
 
   calendar.render();
+  
+  // --- Navigation intelligente pendant le Drag (Style Google Calendar) ---
+  let navTimeout = null;
+  let currentNavDir = null;
+
+  const stopNav = () => {
+    clearTimeout(navTimeout);
+    navTimeout = null;
+    currentNavDir = null;
+    calendarEl.querySelectorAll('.fc-button-dragover').forEach(b => b.classList.remove('fc-button-dragover'));
+  };
+
+  const startNav = (dir) => {
+    if (currentNavDir === dir) return;
+    stopNav();
+    currentNavDir = dir;
+    
+    // Feedback visuel sur les boutons
+    if (dir === 'prev') calendarEl.querySelector('.fc-prev-button')?.classList.add('fc-button-dragover');
+    if (dir === 'next') calendarEl.querySelector('.fc-next-button')?.classList.add('fc-button-dragover');
+
+    navTimeout = setTimeout(() => {
+      if (dir === 'prev') calendar.prev();
+      else if (dir === 'next') calendar.next();
+      
+      currentNavDir = null; // Permet de relancer si on reste dans la zone
+      stopNav();
+    }, 900);
+  };
+
+  const checkNavZone = (x, y, target) => {
+    const rect = calendarEl.getBoundingClientRect();
+    const edgeThreshold = 50; // pixels depuis le bord gauche/droit
+    
+    const prevBtn = calendarEl.querySelector('.fc-prev-button');
+    const nextBtn = calendarEl.querySelector('.fc-next-button');
+    
+    // On vérifie si on est soit sur le bouton, soit sur le bord du container
+    if (prevBtn?.contains(target) || (x >= rect.left && x <= rect.left + edgeThreshold && y >= rect.top && y <= rect.bottom)) {
+      startNav('prev');
+    } else if (nextBtn?.contains(target) || (x <= rect.right && x >= rect.right - edgeThreshold && y >= rect.top && y <= rect.bottom)) {
+      startNav('next');
+    } else {
+      stopNav();
+    }
+  };
+
+  // Pour les tâches externes (Drag natif)
+  calendarEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    checkNavZone(e.clientX, e.clientY, e.target);
+  });
+  calendarEl.addEventListener('dragleave', stopNav);
+  calendarEl.addEventListener('drop', stopNav);
+  
+  // Pour les événements internes (JS Drag de FullCalendar)
+  calendar.setOption('eventDragStart', (info) => {
+    window._isDraggingInternal = true;
+    const onMove = (e) => {
+      if (window._isDraggingInternal) checkNavZone(e.clientX, e.clientY, e.target);
+    };
+    window.addEventListener('mousemove', onMove);
+    window._fcMoveHandler = onMove;
+  });
+
+  calendar.setOption('eventDragStop', (info) => {
+    window._isDraggingInternal = false;
+    if (window._fcMoveHandler) {
+      window.removeEventListener('mousemove', window._fcMoveHandler);
+    }
+    stopNav();
+  });
   
   // Initialiser le Drag & Drop des tâches externes
   new FullCalendar.Draggable(document.getElementById('externalTasksList'), {
@@ -1583,7 +1703,14 @@ function initEventListeners() {
     if (action === "open-project") openProjectDetail(id);
   });
 
-  document.querySelectorAll("dialog").forEach(d => d.onclick = (e) => { if (e.target === d) d.close(); });
+  document.querySelectorAll("dialog").forEach(d => {
+    d.addEventListener('close', () => {
+      // Remove scroll lock only if no other dialog is still open
+      const anyOpen = [...document.querySelectorAll('dialog')].some(dlg => dlg.open);
+      if (!anyOpen) document.body.classList.remove('dialog-open');
+    });
+    d.onclick = (e) => { if (e.target === d) d.close(); };
+  });
 
   // Auth form handlers
   let authMode = "login";
