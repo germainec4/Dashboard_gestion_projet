@@ -792,7 +792,11 @@ function initCalendar() {
       openTaskDialogFromCalendar(info.start, info.end);
       calendar.unselect();
     },
-    events: [] // Sera rempli par fetchGoogleEvents
+    events: [], // Sera rempli par fetchGoogleEvents
+    datesSet: (info) => {
+      // Important : charger les événements Google pour la nouvelle période visible
+      fetchGoogleEvents(info.start, info.end);
+    }
   });
 
   calendar.render();
@@ -987,14 +991,12 @@ function pickDecathlonCalendar(calendarItems = []) {
   }) || calendarItems.find(cal => normalizeCalendarName(cal.summary).includes("decathlon"));
 }
 
-async function fetchGoogleEvents() {
+async function fetchGoogleEvents(customStart, customEnd) {
   // 1. Vérifier et rafraîchir le token si nécessaire
   if (!googleAccessToken || Date.now() > (googleTokenExpiry - 60000)) {
     console.log("Token expiré ou proche de l'expiration, tentative de rafraîchissement silencieux...");
     if (googleTokenClient) {
       googleTokenClient.requestAccessToken({ prompt: '' });
-      // On arrête ici car le callback de requestAccessToken (dans initGoogleAuth) 
-      // appellera à nouveau fetchGoogleEvents
       return; 
     }
   }
@@ -1002,13 +1004,23 @@ async function fetchGoogleEvents() {
   if (!googleAccessToken || !calendar) return;
 
   try {
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-    startOfWeek.setHours(0, 0, 0, 0);
+    let timeMin, timeMax;
     
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    if (customStart && customEnd) {
+      timeMin = customStart;
+      timeMax = customEnd;
+    } else if (calendar && calendar.view) {
+      // Utiliser la plage visible du calendrier (indispensable pour le drag vers d'autres semaines)
+      timeMin = calendar.view.activeStart;
+      timeMax = calendar.view.activeEnd;
+    } else {
+      // Fallback
+      const now = new Date();
+      timeMin = new Date(now.setDate(now.getDate() - now.getDay() + 1));
+      timeMin.setHours(0,0,0,0);
+      timeMax = new Date(timeMin);
+      timeMax.setDate(timeMax.getDate() + 7);
+    }
 
     // 1. Récupérer la liste des agendas
     const listResponse = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?' + new URLSearchParams({
@@ -1047,8 +1059,8 @@ async function fetchGoogleEvents() {
 
     for (const cal of calendarsToFetch) {
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + new URLSearchParams({
-        timeMin: startOfWeek.toISOString(),
-        timeMax: endOfWeek.toISOString(),
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
         maxResults: '1000'
