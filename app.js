@@ -537,9 +537,13 @@ function projectCard(project) {
   if (project.dueDate) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const due = new Date(project.dueDate);
+    
+    // Parse date safely to avoid timezone shifts
+    const [year, month, day] = project.dueDate.split('-').map(Number);
+    const due = new Date(year, month - 1, day);
     due.setHours(0, 0, 0, 0);
-    const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+    
+    const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
 
     let badgeClass = 'normal';
     let label = '';
