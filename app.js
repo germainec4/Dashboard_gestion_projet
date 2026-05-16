@@ -827,7 +827,9 @@ function handleGoogleAuth() {
     }
   }
   
-  googleTokenClient.requestAccessToken({prompt: 'consent'});
+  // On ne force plus 'consent' pour éviter de re-valider les permissions à chaque fois.
+  // Google réutilisera le consentement précédent.
+  googleTokenClient.requestAccessToken({ prompt: '' });
 }
 
 function updateGoogleLoginButton() {
@@ -856,6 +858,17 @@ function pickDecathlonCalendar(calendarItems = []) {
 }
 
 async function fetchGoogleEvents() {
+  // 1. Vérifier et rafraîchir le token si nécessaire
+  if (!googleAccessToken || Date.now() > (googleTokenExpiry - 60000)) {
+    console.log("Token expiré ou proche de l'expiration, tentative de rafraîchissement silencieux...");
+    if (googleTokenClient) {
+      googleTokenClient.requestAccessToken({ prompt: '' });
+      // On arrête ici car le callback de requestAccessToken (dans initGoogleAuth) 
+      // appellera à nouveau fetchGoogleEvents
+      return; 
+    }
+  }
+
   if (!googleAccessToken || !calendar) return;
 
   try {
