@@ -821,34 +821,40 @@ function initCalendar() {
       if (dir === 'prev') calendar.prev();
       else if (dir === 'next') calendar.next();
       
-      currentNavDir = null; // Permet de relancer si on reste dans la zone
-      stopNav();
-    }, 900);
+      currentNavDir = null; // Permet de relancer après un petit délai si on reste dans la zone
+    }, 600); // Plus réactif (600ms au lieu de 900ms)
   };
 
   const checkNavZone = (x, y, target) => {
     const rect = calendarEl.getBoundingClientRect();
-    const edgeThreshold = 50; // pixels depuis le bord gauche/droit
+    const edgeThreshold = 80; // Zone plus large pour faciliter la navigation au bord
     
     const prevBtn = calendarEl.querySelector('.fc-prev-button');
     const nextBtn = calendarEl.querySelector('.fc-next-button');
     
     // On vérifie si on est soit sur le bouton, soit sur le bord du container
-    if (prevBtn?.contains(target) || (x >= rect.left && x <= rect.left + edgeThreshold && y >= rect.top && y <= rect.bottom)) {
+    const isPrev = prevBtn?.contains(target) || (x >= rect.left && x <= rect.left + edgeThreshold && y >= rect.top && y <= rect.bottom);
+    const isNext = nextBtn?.contains(target) || (x <= rect.right && x >= rect.right - edgeThreshold && y >= rect.top && y <= rect.bottom);
+
+    if (isPrev) {
       startNav('prev');
-    } else if (nextBtn?.contains(target) || (x <= rect.right && x >= rect.right - edgeThreshold && y >= rect.top && y <= rect.bottom)) {
+    } else if (isNext) {
       startNav('next');
     } else {
       stopNav();
     }
   };
 
+
   // Pour les tâches externes (Drag natif)
-  calendarEl.addEventListener('dragover', (e) => {
-    e.preventDefault();
+  const onExternalDragOver = (e) => {
+    if (currentView !== 'calendar') return;
     checkNavZone(e.clientX, e.clientY, e.target);
-  });
-  calendarEl.addEventListener('dragleave', stopNav);
+  };
+  
+  calendarEl.addEventListener('dragover', (e) => e.preventDefault()); 
+  document.addEventListener('dragover', onExternalDragOver);
+  document.addEventListener('dragend', stopNav);
   calendarEl.addEventListener('drop', stopNav);
   
   // Pour les événements internes (JS Drag de FullCalendar)
@@ -1573,10 +1579,6 @@ function initEventListeners() {
       taskRef = await updateTask(id, { title, pillar, projectId, status, description, dueDate });
     } else {
       taskRef = await addTask(title, pillar, projectId);
-      // Si on vient du calendrier, on a pu changer le statut/desc/date après addTask
-      if (status !== "inbox" || description || dueDate) {
-        await updateTask(taskRef.id, { status, description, dueDate });
-      }
     }
 
     // Synchronisation Google Calendar si heures présentes
