@@ -10,6 +10,7 @@
   --surface: #080808;
   --surface-2: #111;
   --surface-3: #161616;
+  --panel-bg: #0c0c0c;
   --border: #2a2a2a;
   --border-soft: #1f1f1f;
   --text: #ededed;
@@ -43,6 +44,10 @@ body {
     var(--bg);
   background-size: 48px 48px;
   color: var(--text);
+}
+
+body.dialog-open {
+  overflow: hidden;
 }
 
 body::before {
@@ -813,39 +818,39 @@ textarea:focus {
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
 .deadline-badge.none {
-  background: var(--surface-2);
-  color: var(--muted);
+  background: transparent;
+  color: var(--muted-2);
   font-weight: 400;
+  font-size: 10px;
 }
 
 .deadline-badge.normal {
-  background: var(--border-soft);
-  color: var(--text);
+  background: transparent;
+  color: var(--muted);
 }
 
 .deadline-badge.warning {
-  background: rgba(245, 166, 35, 0.15);
+  background: rgba(245, 166, 35, 0.1);
   color: #f5a623;
-  border: 1px solid rgba(245, 166, 35, 0.3);
+  border: 1px solid rgba(245, 166, 35, 0.2);
 }
 
 .deadline-badge.urgent {
-  background: rgba(245, 100, 35, 0.2);
+  background: rgba(245, 100, 35, 0.15);
   color: #f56423;
-  border: 1px solid rgba(245, 100, 35, 0.4);
+  border: 1px solid rgba(245, 100, 35, 0.3);
 }
 
 .deadline-badge.overdue {
-  background: rgba(234, 56, 76, 0.2);
+  background: rgba(234, 56, 76, 0.15);
   color: #ea384c;
-  border: 1px solid rgba(234, 56, 76, 0.4);
+  border: 1px solid rgba(234, 56, 76, 0.3);
 }
 
 .milestone-list {
@@ -1039,8 +1044,8 @@ textarea:focus {
 }
 
 .dialog::backdrop {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(14px);
 }
 
 .dialog-content {
@@ -2084,3 +2089,40 @@ option {
   border-color: #bb2d3b;
   transform: translateY(-1px);
 }
+
+/* Feedback pour la navigation au survol pendant le drag */
+.fc-button-dragover {
+  background-color: var(--blue) !important;
+  border-color: var(--white) !important;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(50, 145, 255, 0.4);
+  z-index: 10;
+}
+
+/* Ajustements pour la vue mois (FullCalendar) */
+.fc-dayGridMonth-view .fc-event {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.fc-dayGridMonth-view .fc-daygrid-day-number {
+  font-size: 0.9em;
+  color: var(--muted);
+  padding: 8px;
+  text-decoration: none;
+}
+
+.fc-dayGridMonth-view .fc-col-header-cell-cushion {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 0;
+  text-decoration: none;
+}
+
+.fc-dayGridMonth-view .fc-daygrid-event-h-inner {
+  border-radius: 3px;
+}
+
