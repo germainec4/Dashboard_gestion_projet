@@ -754,8 +754,14 @@ function updateEvolutionChart(filteredMissions) {
     // Mise à jour de l'indicateur de net moyen
     const avgNetEl = document.getElementById('avgNetMois');
     if (avgNetEl) {
-      if (document.getElementById('toggleMonthlyGoal')?.checked && evolutionNet.length > 0) {
-        const avg = evolutionNet.reduce((a, b) => a + b, 0) / evolutionNet.length;
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const completedMonthNet = sortedMonthKeys
+        .filter(k => k < currentMonthKey)
+        .map(k => monthlyData[k].ca * 0.7);
+
+      if (document.getElementById('toggleMonthlyGoal')?.checked && completedMonthNet.length > 0) {
+        const avg = completedMonthNet.reduce((a, b) => a + b, 0) / completedMonthNet.length;
         avgNetEl.textContent = `Net moyen : ${formatCurrency(avg)} / mois`;
         avgNetEl.style.display = 'block';
       } else {
