@@ -507,8 +507,19 @@ function initEventListeners() {
   });
 
   document.getElementById('missionsTableBody').addEventListener('click', async (e) => {
-    // Si on clique sur le bouton supprimer, on arrête la propagation pour ne pas ouvrir le mode édition
-    if (e.target.closest('.delete-btn')) return;
+    const deleteBtn = e.target.closest('.delete-btn');
+    if (deleteBtn) {
+      e.stopPropagation();
+      if (confirm("Supprimer cette mission ?")) {
+        const { error } = await supabase.from('missions').delete().eq('id', deleteBtn.dataset.id);
+        if (error) {
+          showToast("Erreur lors de la suppression", "error");
+          return;
+        }
+        loadData();
+      }
+      return;
+    }
 
     const row = e.target.closest('.mission-row');
     const editBtn = e.target.closest('.edit-btn');
@@ -537,13 +548,6 @@ function initEventListeners() {
       }
     }
 
-    const deleteBtn = e.target.closest('.delete-btn');
-    if (deleteBtn) {
-      if (confirm("Supprimer cette mission ?")) {
-        await supabase.from('missions').delete().eq('id', deleteBtn.dataset.id);
-        loadData();
-      }
-    }
   });
   
   // Graphiques & Objectifs
