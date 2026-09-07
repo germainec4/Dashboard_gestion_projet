@@ -327,11 +327,16 @@ function renderTable() {
     const group = groups[key];
     const isCollapsed = collapsedGroups.has(key);
     
-    // Trier les missions au sein du groupe par date décroissante (plus récent en haut)
-    // On utilise la même logique de priorité de date pour le tri
+    // Afficher les missions non payées en premier, puis les missions payées.
+    // Dans chaque ensemble, conserver le tri chronologique par date de validation.
     group.items.sort((a, b) => {
-        const dateA = a.date_payment ? new Date(a.date_payment) : (a.date_validation ? new Date(a.date_validation) : new Date(a.created_at));
-        const dateB = b.date_payment ? new Date(b.date_payment) : (b.date_validation ? new Date(b.date_validation) : new Date(b.created_at));
+        const isPaidA = a.status === 'payee';
+        const isPaidB = b.status === 'payee';
+
+        if (isPaidA !== isPaidB) return isPaidA ? 1 : -1;
+
+        const dateA = parseSafeDate(a.date_validation) || parseSafeDate(a.date_payment) || new Date(a.created_at);
+        const dateB = parseSafeDate(b.date_validation) || parseSafeDate(b.date_payment) || new Date(b.created_at);
         return dateB - dateA;
     });
     
