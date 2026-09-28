@@ -1,10 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { initFiscalPanel } from './fiscal.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let supabase = null;
 let missions = [];
+let fiscalPanel = null;
 let collapsedGroups = new Set(); // Ex: "2024-Q4"
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -66,6 +68,7 @@ async function init() {
     return;
   }
 
+  fiscalPanel = initFiscalPanel(() => missions, session.user.id);
   await loadData();
   refreshQontoBalance();
   initEventListeners();
@@ -108,6 +111,7 @@ function renderAll() {
   populateKPIFilter();
   renderKPIs();
   renderTable();
+  fiscalPanel?.refresh();
 }
 
 function renderKPIs() {

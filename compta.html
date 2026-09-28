@@ -700,10 +700,16 @@
           </div>
         </section>
 
+        <div class="compta-secondary-actions">
         <button id="toggleChartsBtn" class="button button-secondary chart-toggle-btn">
           <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18M18 17l-4-4-4 4-4-4"/></svg>
           Afficher les graphiques
         </button>
+        <button id="openFiscalBtn" class="button button-secondary chart-toggle-btn" type="button" aria-haspopup="dialog">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M8 3v4m8-4v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM8 14h3m-3 3h7"/></svg>
+          Déclarations &amp; TVA <span id="fiscalBadge" class="fiscal-badge" hidden></span>
+        </button>
+        </div>
 
         <section id="chartsSection" class="charts-section">
           <div class="charts-grid">
@@ -783,6 +789,39 @@
         </div>
       </footer>
     </div>
+
+    <dialog id="fiscalDialog" class="dialog" aria-labelledby="fiscalTitle">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <div><p class="section-kicker">Suivi administratif</p><h2 id="fiscalTitle">Déclarations &amp; TVA</h2></div>
+          <button id="closeFiscalBtn" class="icon-button" type="button" aria-label="Fermer le suivi fiscal"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="fiscal-tabs" role="tablist" aria-label="Suivi fiscal">
+          <button id="fiscalQuarterTab" role="tab" aria-selected="true" aria-controls="fiscalQuarterPanel" type="button">Déclaration trimestrielle</button>
+          <button id="fiscalAnnualTab" role="tab" aria-selected="false" aria-controls="fiscalAnnualPanel" tabindex="-1" type="button">Suivi annuel &amp; TVA</button>
+        </div>
+        <div class="fiscal-filters">
+          <label>Année<select id="fiscalYear"></select></label>
+          <label id="fiscalQuarterLabel">Trimestre<select id="fiscalQuarter"><option value="1">T1 · Janvier – Mars</option><option value="2">T2 · Avril – Juin</option><option value="3">T3 · Juillet – Septembre</option><option value="4">T4 · Octobre – Décembre</option></select></label>
+        </div>
+        <section id="fiscalQuarterPanel" class="fiscal-panel" role="tabpanel" aria-labelledby="fiscalQuarterTab"></section>
+        <section id="fiscalAnnualPanel" class="fiscal-panel" role="tabpanel" aria-labelledby="fiscalAnnualTab" hidden></section>
+        <details class="fiscal-details">
+          <summary>Base de calcul &amp; paramètres</summary>
+          <p class="fiscal-muted">Calcul à partir des missions enregistrées, payées intégralement et datées. Les acomptes et paiements partiels ne sont pas représentés dans le modèle actuel. Les montants doivent être hors TVA, avant cotisations et commissions.</p>
+          <label class="fiscal-check"><input id="fiscalConfirmed" type="checkbox">Je confirme que mes montants « Prix (CA) » sont HT, avant commissions, et que mes encaissements sont complets, sans acompte à ajouter.</label>
+          <label class="fiscal-check"><input id="fiscalCosts" type="checkbox">Ajouter les « Frais liés à la mission » au CA (frais refacturés, non déjà compris dans le prix).</label>
+          <p class="fiscal-muted">Par défaut, seul « Prix (CA) » est retenu. Ne cochez pas si les frais sont déjà inclus, restent à votre charge ou constituent de véritables débours à exclure. Aucune charge n’est déduite.</p>
+          <div class="fiscal-settings-grid">
+            <label>Seuil de base TVA (€)<input id="fiscalBase" type="number" min="1" step="0.01" value="37500" required></label>
+            <label>Seuil majoré TVA (€)<input id="fiscalUpper" type="number" min="1" step="0.01" value="41250" required></label>
+          </div>
+          <p class="fiscal-muted">Référence par défaut : prestations de services ordinaires en France, franchise de TVA, 2026. Vérifiez les seuils pour une autre année ou activité. Ces paramètres sont enregistrés pour l’année sélectionnée, sur ce navigateur et pour votre compte.</p>
+        </details>
+        <p id="fiscalFeedback" class="fiscal-muted" role="status" aria-live="polite"></p>
+        <p class="fiscal-muted fiscal-sources">Sources : <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F23257" target="_blank" rel="noopener noreferrer">déclaration du CA</a> · <a href="https://www.urssaf.fr/files/live/sites/urssaffr/files/LP/mespremiersmois/index.html" target="_blank" rel="noopener noreferrer">calendrier Urssaf</a> · <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F21746" target="_blank" rel="noopener noreferrer">franchise de TVA</a>. Calendrier des déclarations habituelles, hors première déclaration.</p>
+      </div>
+    </dialog>
 
     <!-- Modale Ajout/Edition Mission -->
     <dialog id="missionDialog" class="dialog task-dialog">
