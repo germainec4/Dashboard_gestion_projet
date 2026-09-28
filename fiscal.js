@@ -59,50 +59,47 @@ export function initFiscalPanel(getMissions, userId) {
     settingsByYear.set(year, settings);
     try {
       localStorage.setItem(key(year), JSON.stringify(settings));
-      el('fiscalFeedback').textContent = 'Paramètres enregistrés sur ce navigateur.';
-    } catch { el('fiscalFeedback').textContent = 'Paramètres appliqués pour cette session ; enregistrement local indisponible.'; }
+      el('fiscalFeedback').textContent = 'Paramètres enregistrés.';
+    } catch { el('fiscalFeedback').textContent = 'Enregistrement indisponible : paramètres conservés pour cette session.'; }
     refresh();
   }
   function issuesMarkup(issues) {
     if (!issues.length) return '';
-    return `<details class="fiscal-details"><summary>${issues.length} mission(s) à vérifier, exclue(s) des calculs</summary><p class="fiscal-muted">Toutes périodes confondues : une date manquante ne permet pas de rattacher la mission à un trimestre.</p><ul>${issues.map(({ mission, reason }) => `<li>${escape(mission.title)} — ${escape(reason)}</li>`).join('')}</ul></details>`;
+    return `<details class="fiscal-details"><summary>${issues.length} mission(s) exclue(s) · à vérifier</summary><ul>${issues.map(({ mission, reason }) => `<li>${escape(mission.title)} — ${escape(reason)}</li>`).join('')}</ul></details>`;
   }
   function renderQuarter(data, settings, now) {
     const { window, payments, total } = data;
-    const stateLabel = { upcoming: 'À venir', open: 'Déclaration ouverte', closed: 'Période terminée' }[window.state];
+    const stateLabel = { upcoming: 'À venir', open: 'Ouverte', closed: 'Période terminée' }[window.state];
     const provisional = now < window.opening;
     el('fiscalQuarterPanel').innerHTML = `
-      <div class="fiscal-hero"><p class="section-kicker">${settings.confirmed && !data.issues.length ? 'CA encaissé HT à déclarer' : 'CA encaissé estimé · base à vérifier'}</p>
+      <div class="fiscal-hero"><p class="section-kicker">${settings.confirmed && !data.issues.length ? 'CA HT à déclarer' : 'CA à déclarer · estimé'}</p>
         <strong class="fiscal-amount">${money(total)}</strong>
-        <p class="fiscal-muted">Encaissements du ${dateLabel(window.start)} au ${dateLabel(window.end)} · ${payments.length} mission(s)</p>
-        <p class="fiscal-muted">${provisional ? `Provisoire au ${dateLabel(now)}` : 'Selon les paiements enregistrés'} · ${settings.includeCosts ? 'Frais refacturés ajoutés' : 'Champ « Prix (CA) » uniquement'}</p>
+        ${provisional ? `<p class="fiscal-muted">Provisoire au ${dateLabel(now)}</p>` : ''}
+        ${settings.includeCosts ? '<p class="fiscal-muted">Frais refacturés inclus</p>' : ''}
       </div>
-      <div><div class="fiscal-window"><div><p class="fiscal-muted">Ouverture de la déclaration</p><strong>${dateLabel(window.opening)}</strong></div><div><p class="fiscal-muted">Dernier jour pour déclarer et payer</p><strong>${dateLabel(window.deadline)}</strong></div></div><span class="fiscal-state ${window.state}">${stateLabel}</span></div>
-      ${!settings.confirmed ? '<p class="fiscal-notice">Vérifiez la base de calcul ci-dessous : montants HT, frais et éventuels acomptes. Le total couvre uniquement les missions enregistrées.</p>' : ''}
-      <div class="fiscal-actions"><button class="button button-secondary" type="button" data-fiscal-action="copy">Copier le montant</button><button class="button button-secondary" type="button" data-fiscal-action="csv">Exporter le détail</button><button class="button button-secondary" type="button" data-fiscal-action="calendar">Ajouter à mon agenda</button><a class="button button-secondary" href="https://www.autoentrepreneur.urssaf.fr/" target="_blank" rel="noopener noreferrer">Ouvrir l’Urssaf ↗</a></div>
-      <details class="fiscal-details"><summary>Détail des encaissements · ${payments.length} mission(s)</summary>
+      <div><div class="fiscal-window"><div><p class="fiscal-muted">Ouverture</p><strong>${dateLabel(window.opening)}</strong></div><div><p class="fiscal-muted">Date limite</p><strong>${dateLabel(window.deadline)}</strong></div></div><span class="fiscal-state ${window.state}">${stateLabel}</span></div>
+      <div class="fiscal-actions"><button class="button button-secondary" type="button" data-fiscal-action="copy">Copier</button><button class="button button-secondary" type="button" data-fiscal-action="csv">Exporter CSV</button><button class="button button-secondary" type="button" data-fiscal-action="calendar">Ajouter à l’agenda</button><a class="button button-secondary" href="https://www.autoentrepreneur.urssaf.fr/" target="_blank" rel="noopener noreferrer">Urssaf ↗</a></div>
+      <details class="fiscal-details"><summary>Encaissements · ${payments.length}</summary>
         ${payments.length ? `<div class="fiscal-table-wrap"><table class="fiscal-table"><thead><tr><th>Mission</th><th>Client</th><th>Encaissement</th><th>Montant retenu</th></tr></thead><tbody>${payments.map(({ mission, payment, amount }) => `<tr><td>${escape(mission.title)}</td><td>${escape(mission.client)}</td><td>${payment.toLocaleDateString('fr-FR')}</td><td>${money(amount)}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="3">Total</th><th>${money(total)}</th></tr></tfoot></table></div>` : '<p class="fiscal-muted">Aucun encaissement enregistré pour ce trimestre.</p>'}
-      </details>${issuesMarkup(data.issues)}
-      <p class="fiscal-muted">La date d’encaissement détermine le trimestre, même si le devis a été validé auparavant. La fin de la période de déclaration ne signifie pas que vous avez déclaré ; aucun envoi automatique n’est effectué.</p>`;
+      </details>${issuesMarkup(data.issues)}`;
   }
   function renderAnnual(data, settings, now) {
     const base = cents(settings.base);
     const upper = cents(settings.upper);
     const current = year === now.getFullYear();
     const projected = data.annual + (current && simulateCommitted ? data.committed : 0) + (current && simulatePotential ? data.potential : 0);
-    const message = data.annual > upper ? 'Seuil majoré dépassé dans ce suivi : vérifiez la date de sortie de franchise avec votre SIE.'
-      : data.previous > base ? `Le CA enregistré en ${year - 1} dépasse le seuil de base : vérifiez votre situation TVA dès le début de ${year}.`
-      : data.annual > base ? 'Seuil de base dépassé dans ce suivi : anticipez la TVA pour l’année suivante et surveillez le seuil majoré.'
-      : `Marge jusqu’au seuil de base : ${money(base - data.annual)}.`;
+    const message = data.annual > upper ? 'Seuil majoré dépassé · date de passage à la TVA à confirmer.'
+      : data.previous > base ? `Seuil de base dépassé en ${year - 1} · situation TVA à vérifier.`
+      : data.annual > base ? 'Seuil de base dépassé · TVA à anticiper pour l’année suivante.'
+      : '';
     el('fiscalAnnualPanel').innerHTML = `
-      <div class="fiscal-hero"><p class="section-kicker">CA encaissé ${year}</p><strong class="fiscal-amount">${money(data.annual)}</strong><p class="fiscal-muted">Du 1er janvier ${year} ${current ? `au ${dateLabel(now)}` : `au 31 décembre ${year}`} · ${settings.confirmed ? 'base confirmée par vos soins' : 'base de calcul à vérifier'}</p>
+      <div class="fiscal-hero"><p class="section-kicker">CA encaissé ${year}</p><strong class="fiscal-amount">${money(data.annual)}</strong>${current ? `<p class="fiscal-muted">Au ${dateLabel(now)}</p>` : ''}
         <div class="fiscal-meter" role="meter" aria-label="CA encaissé comparé au seuil majoré de TVA" aria-valuemin="0" aria-valuemax="${upper / 100}" aria-valuenow="${Math.min(data.annual, upper) / 100}" aria-valuetext="${money(data.annual)} sur ${money(upper)}"><span class="fiscal-meter-fill" style="width:${Math.min(100, data.annual / upper * 100)}%"></span><span class="fiscal-meter-mark" style="left:${Math.min(100, base / upper * 100)}%"></span></div>
         <div class="fiscal-limits"><span>Seuil de base · ${money(base)}</span><span>Seuil majoré · ${money(upper)}</span></div>
-      </div><p class="fiscal-notice">${message}<br>Marge jusqu’au seuil majoré : ${money(Math.max(0, upper - data.annual))}.</p>
-      <p class="fiscal-muted">CA encaissé ${year - 1} enregistré : <strong>${money(data.previous)}</strong>. Vérifiez que l’historique est complet. Les seuils sont ceux des paramètres de l’année sélectionnée.</p>
-      ${current ? `<div class="fiscal-stats"><div class="fiscal-stat"><p class="fiscal-muted">Déjà encaissé</p><strong>${money(data.annual)}</strong></div><div class="fiscal-stat"><p class="fiscal-muted">Accepté · à encaisser</p><strong>${money(data.committed)}</strong></div><div class="fiscal-stat"><p class="fiscal-muted">Envoyé · non accepté</p><strong>${money(data.potential)}</strong></div></div>
-      <div class="fiscal-details"><p><strong>Anticiper les prochains encaissements</strong></p><label class="fiscal-check"><input data-simulate="committed" type="checkbox" ${simulateCommitted ? 'checked' : ''}>Inclure les missions acceptées non payées</label><label class="fiscal-check"><input data-simulate="potential" type="checkbox" ${simulatePotential ? 'checked' : ''}>Inclure aussi les devis envoyés non acceptés</label><p><strong>Scénario : ${money(projected)}</strong></p><p class="fiscal-muted">${projected > upper ? 'Ce scénario dépasse le seuil majoré.' : projected > base ? 'Ce scénario dépasse le seuil de base.' : `Marge du scénario jusqu’au seuil de base : ${money(base - projected)}.`} Hypothèse : tous les montants cochés sont encaissés avant le 31 décembre. Les missions en attente sont prises toutes dates confondues, sans double compte ; aucune date de dépassement n’est prédite.</p></div>` : '<p class="fiscal-muted">Les projections à partir des devis actuels sont disponibles uniquement pour l’année en cours.</p>'}
-      <details class="fiscal-details"><summary>Comprendre les seuils et anticiper mes devis</summary><p class="fiscal-muted">En franchise de TVA, un dépassement du seuil de base entraîne normalement la TVA l’année suivante ; un dépassement du seuil majoré entraîne la sortie dès le jour du dépassement. Cette jauge est un suivi sur encaissements : la base fiscale applicable et la date de réalisation des prestations doivent être vérifiées avec votre service des impôts des entreprises (SIE). Un devis en attente ne déclenche pas la TVA à lui seul. La TVA applicable aux opérations doit être déterminée avant de modifier les devis et factures. Les seuils sont distincts du plafond du régime micro.</p></details>
+      </div>${message ? `<p class="fiscal-notice">${message}</p>` : ''}
+      <div class="fiscal-stats"><div class="fiscal-stat"><p class="fiscal-muted">Marge · seuil de base</p><strong>${money(Math.max(0, base - data.annual))}</strong></div><div class="fiscal-stat"><p class="fiscal-muted">Marge · seuil majoré</p><strong>${money(Math.max(0, upper - data.annual))}</strong></div></div>
+      <p class="fiscal-muted">Encaissé en ${year - 1} : <strong>${money(data.previous)}</strong></p>
+      ${current ? `<div class="fiscal-details"><p><strong>Simulation au 31 décembre</strong></p><label class="fiscal-check"><input data-simulate="committed" type="checkbox" ${simulateCommitted ? 'checked' : ''}>Missions acceptées à encaisser · ${money(data.committed)}</label><label class="fiscal-check"><input data-simulate="potential" type="checkbox" ${simulatePotential ? 'checked' : ''}>Devis envoyés non acceptés · ${money(data.potential)}</label><p><strong>CA projeté : ${money(projected)}</strong></p><p class="fiscal-muted">Si encaissé avant le 31 décembre${projected > upper ? ' · seuil majoré dépassé' : projected > base ? ' · seuil de base dépassé' : ''}.</p></div>` : ''}
       ${issuesMarkup(data.issues)}`;
   }
   function refresh() {
@@ -162,14 +159,14 @@ export function initFiscalPanel(getMissions, userId) {
     if (action === 'copy') {
       try {
         await navigator.clipboard.writeText((snapshot.total / 100).toFixed(2).replace('.', ','));
-        el('fiscalFeedback').textContent = 'Montant copié. Vérifiez la base et les éventuelles missions manquantes avant de déclarer.';
+        el('fiscalFeedback').textContent = 'Montant copié.';
       } catch { el('fiscalFeedback').textContent = `Copie indisponible. Montant : ${money(snapshot.total)}.`; }
     } else if (action === 'csv') {
       download(paymentsCsv(snapshot, settingsFor(year)), 'text/csv;charset=utf-8', `encaissements-${year}-T${quarter}.csv`);
-      el('fiscalFeedback').textContent = 'Export CSV demandé : détail des encaissements et base de calcul sélectionnée.';
+      el('fiscalFeedback').textContent = 'Export CSV demandé.';
     } else {
       download(calendarEvent(year, quarter), 'text/calendar;charset=utf-8', `declaration-${year}-T${quarter}.ics`);
-      el('fiscalFeedback').textContent = 'Importez le fichier dans votre agenda : fenêtre de déclaration complète et rappel 3 jours avant sa fin (selon votre application).';
+      el('fiscalFeedback').textContent = 'Fichier à importer dans l’agenda · rappel 3 jours avant la fin.';
     }
   });
   loadSettings();

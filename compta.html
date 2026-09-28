@@ -793,7 +793,7 @@
     <dialog id="fiscalDialog" class="dialog" aria-labelledby="fiscalTitle">
       <div class="dialog-content">
         <div class="dialog-header">
-          <div><p class="section-kicker">Suivi administratif</p><h2 id="fiscalTitle">Déclarations &amp; TVA</h2></div>
+          <div><h2 id="fiscalTitle">Déclarations &amp; TVA</h2></div>
           <button id="closeFiscalBtn" class="icon-button" type="button" aria-label="Fermer le suivi fiscal"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
         <div class="fiscal-tabs" role="tablist" aria-label="Suivi fiscal">
@@ -807,19 +807,17 @@
         <section id="fiscalQuarterPanel" class="fiscal-panel" role="tabpanel" aria-labelledby="fiscalQuarterTab"></section>
         <section id="fiscalAnnualPanel" class="fiscal-panel" role="tabpanel" aria-labelledby="fiscalAnnualTab" hidden></section>
         <details class="fiscal-details">
-          <summary>Base de calcul &amp; paramètres</summary>
-          <p class="fiscal-muted">Calcul à partir des missions enregistrées, payées intégralement et datées. Les acomptes et paiements partiels ne sont pas représentés dans le modèle actuel. Les montants doivent être hors TVA, avant cotisations et commissions.</p>
-          <label class="fiscal-check"><input id="fiscalConfirmed" type="checkbox">Je confirme que mes montants « Prix (CA) » sont HT, avant commissions, et que mes encaissements sont complets, sans acompte à ajouter.</label>
-          <label class="fiscal-check"><input id="fiscalCosts" type="checkbox">Ajouter les « Frais liés à la mission » au CA (frais refacturés, non déjà compris dans le prix).</label>
-          <p class="fiscal-muted">Par défaut, seul « Prix (CA) » est retenu. Ne cochez pas si les frais sont déjà inclus, restent à votre charge ou constituent de véritables débours à exclure. Aucune charge n’est déduite.</p>
+          <summary>Paramètres</summary>
+          <label class="fiscal-check"><input id="fiscalConfirmed" type="checkbox">Montants HT avant commissions et encaissements complets confirmés (hors acomptes).</label>
+          <label class="fiscal-check"><input id="fiscalCosts" type="checkbox">Ajouter les frais refacturés, hors débours et frais déjà inclus.</label>
           <div class="fiscal-settings-grid">
             <label>Seuil de base TVA (€)<input id="fiscalBase" type="number" min="1" step="0.01" value="37500" required></label>
             <label>Seuil majoré TVA (€)<input id="fiscalUpper" type="number" min="1" step="0.01" value="41250" required></label>
           </div>
-          <p class="fiscal-muted">Référence par défaut : prestations de services ordinaires en France, franchise de TVA, 2026. Vérifiez les seuils pour une autre année ou activité. Ces paramètres sont enregistrés pour l’année sélectionnée, sur ce navigateur et pour votre compte.</p>
+          <p class="fiscal-muted">Seuils par défaut : services, France, 2026. Enregistrement local par année.</p>
+          <p class="fiscal-muted fiscal-sources"><a href="https://entreprendre.service-public.gouv.fr/vosdroits/F23257" target="_blank" rel="noopener noreferrer">Règles Urssaf ↗</a> · <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F21746" target="_blank" rel="noopener noreferrer">Règles TVA ↗</a></p>
         </details>
         <p id="fiscalFeedback" class="fiscal-muted" role="status" aria-live="polite"></p>
-        <p class="fiscal-muted fiscal-sources">Sources : <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F23257" target="_blank" rel="noopener noreferrer">déclaration du CA</a> · <a href="https://www.urssaf.fr/files/live/sites/urssaffr/files/LP/mespremiersmois/index.html" target="_blank" rel="noopener noreferrer">calendrier Urssaf</a> · <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F21746" target="_blank" rel="noopener noreferrer">franchise de TVA</a>. Calendrier des déclarations habituelles, hors première déclaration.</p>
       </div>
     </dialog>
 
