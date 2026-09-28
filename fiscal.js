@@ -1,4 +1,5 @@
 import './fiscal.css';
+import { initVatPanel } from './vat-panel.js';
 import { cents, day, defaultPeriod, declarationWindow, summarizeMissions, calendarEvent, paymentsCsv } from './fiscal-model.js';
 
 const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value / 100);
@@ -17,13 +18,15 @@ function download(content, type, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function initFiscalPanel(getMissions, userId) {
+export function initFiscalPanel(getMissions, userId, supabase) {
   const el = id => document.getElementById(id);
   const dialog = el('fiscalDialog');
   const initial = defaultPeriod();
   let year = initial.year;
   let quarter = initial.quarter;
   let activeTab = 'quarter';
+  const vatPanel = initVatPanel(getMissions, userId, supabase);
+  const tabs = { quarter: 'fiscalQuarter', annual: 'fiscalAnnual', vat: 'fiscalVat' };
   let snapshot;
   let simulateCommitted = false;
   let simulatePotential = false;
@@ -113,6 +116,7 @@ export function initFiscalPanel(getMissions, userId) {
     snapshot = summarizeMissions(missions, year, quarter, settings, now);
     renderQuarter(snapshot, settings, now);
     renderAnnual(snapshot, settings, now);
+    if (activeTab === 'vat') vatPanel.refresh(year);
     const currentSettings = settingsFor(now.getFullYear());
     const currentData = summarizeMissions(missions, now.getFullYear(), 1, currentSettings, now);
     const period = defaultPeriod(now);
@@ -126,25 +130,29 @@ export function initFiscalPanel(getMissions, userId) {
   }
   function switchTab(tab) {
     activeTab = tab;
-    ['quarter', 'annual'].forEach(name => {
-      const prefix = name === 'quarter' ? 'fiscalQuarter' : 'fiscalAnnual';
+    Object.entries(tabs).forEach(([name, prefix]) => {
       el(prefix + 'Tab').setAttribute('aria-selected', String(name === tab));
       el(prefix + 'Tab').tabIndex = name === tab ? 0 : -1;
       el(prefix + 'Panel').hidden = name !== tab;
     });
     el('fiscalQuarterLabel').hidden = tab !== 'quarter';
+    el('fiscalSettings').hidden = tab === 'vat';
+    el('fiscalFeedback').textContent = '';
+    if (tab === 'vat') vatPanel.refresh(year, true);
   }
-  el('openFiscalBtn').addEventListener('click', () => { refresh(); dialog.showModal(); });
+  el('openFiscalBtn').addEventListener('click', () => { refresh(); if (activeTab === 'vat') vatPanel.refresh(year, true); dialog.showModal(); });
   el('closeFiscalBtn').addEventListener('click', () => dialog.close());
   el('fiscalYear').addEventListener('change', event => { year = Number(event.target.value); loadSettings(); refresh(); });
   el('fiscalQuarter').addEventListener('change', event => { quarter = Number(event.target.value); refresh(); });
   ['fiscalConfirmed', 'fiscalCosts', 'fiscalBase', 'fiscalUpper'].forEach(id => el(id).addEventListener('change', saveSettings));
-  ['fiscalQuarterTab', 'fiscalAnnualTab'].forEach((id, index) => el(id).addEventListener('click', () => switchTab(index ? 'annual' : 'quarter')));
+  Object.entries(tabs).forEach(([name, prefix]) => el(prefix + 'Tab').addEventListener('click', () => switchTab(name)));
   dialog.querySelector('[role=tablist]').addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    switchTab(event.key === 'Home' ? 'quarter' : event.key === 'End' ? 'annual' : activeTab === 'quarter' ? 'annual' : 'quarter');
-    el(activeTab === 'quarter' ? 'fiscalQuarterTab' : 'fiscalAnnualTab').focus();
+    const names = Object.keys(tabs);
+    const index = (names.indexOf(activeTab) + (event.key === 'ArrowLeft' ? -1 : 1) + names.length) % names.length;
+    switchTab(event.key === 'Home' ? names[0] : event.key === 'End' ? names.at(-1) : names[index]);
+    el(tabs[activeTab] + 'Tab').focus();
   });
   el('fiscalAnnualPanel').addEventListener('change', event => {
     if (!event.target.dataset.simulate) return;

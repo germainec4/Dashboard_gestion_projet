@@ -9,6 +9,12 @@ body:has(#fiscalDialog[open]) { overflow:hidden; }
 #fiscalDialog p { margin:0; }
 #fiscalDialog .fiscal-muted { color:var(--muted); font-size:.82rem; line-height:1.65; }
 .fiscal-tabs { display:flex; border-bottom:1px solid var(--border); gap:24px; }
+.mission-vat { padding:14px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px; }
+#missionDialog .mission-vat-check { display:flex; flex-direction:row; align-items:center; gap:10px; margin:0; }
+#missionVat { width:16px; height:16px; accent-color:var(--blue); }
+#missionVatSummary { color:var(--muted); font-size:.85rem; font-variant-numeric:tabular-nums; }
+.mission-vat-hint { display:block; color:var(--muted); font-size:.72rem; margin-top:4px; white-space:nowrap; }
+.vat-adjustments { display:grid; gap:16px; }
 .fiscal-tabs button { background:none; border:0; border-bottom:2px solid transparent; padding:12px 0; color:var(--muted); cursor:pointer; font:inherit; font-size:.88rem; }
 .fiscal-tabs button[aria-selected=true] { color:var(--text); border-color:var(--blue); }
 #fiscalDialog button:focus-visible, #fiscalDialog summary:focus-visible, #fiscalDialog a:focus-visible { outline:2px solid var(--blue); outline-offset:4px; }

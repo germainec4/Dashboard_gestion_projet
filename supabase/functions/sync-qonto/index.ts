@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { missionAmounts } from '../_shared/mission-amounts.js'
 
 const QONTO_API_URL = 'https://thirdparty.qonto.com/v2/transactions'
 
@@ -126,8 +127,8 @@ Deno.serve(async (req) => {
 
       // Trouver toutes les missions qui correspondent au montant
       const matches = pendingMissions.filter(m => {
-        const missionPrice = parseFloat(m.price.toString())
-        return Math.abs(missionPrice - qontoAmount) < 0.01
+        const amounts = missionAmounts(m)
+        return amounts !== null && amounts.gross === Math.round(qontoAmount * 100)
       })
 
       if (matches.length > 0) {

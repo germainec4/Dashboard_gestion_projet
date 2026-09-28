@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { initFiscalPanel } from './fiscal.js';
+import { initMissionVat } from './mission-vat.js';
+import { missionAmounts } from './vat-model.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -68,7 +70,7 @@ async function init() {
     return;
   }
 
-  fiscalPanel = initFiscalPanel(() => missions, session.user.id);
+  fiscalPanel = initFiscalPanel(() => missions, session.user.id, supabase);
   await loadData();
   refreshQontoBalance();
   initEventListeners();
@@ -386,7 +388,7 @@ function renderTable() {
           <td>${escapeHTML(m.client || '')}</td>
           <td>${escapeHTML(m.entity || '')}</td>
           <td>${m.quote_accepted ? '✅' : (m.quote_sent ? 'Envoyé' : '❌')}</td>
-          <td class="${isLate ? 'late-payment' : ''}">${formatCurrency(m.price)} ${isLate ? '🚨' : ''}</td>
+          <td class="${isLate ? 'late-payment' : ''}">${formatCurrency(m.price)} ${isLate ? '🚨' : ''}${Number(m.vat_rate) > 0 ? `<small class="mission-vat-hint">${formatCurrency((missionAmounts(m)?.gross ?? 0) / 100)} TTC</small>` : ''}</td>
           <td style="color:var(--text-muted)">${m.debours > 0 ? formatCurrency(m.debours) : '-'}</td>
           <td>${m.date_validation ? new Date(m.date_validation).toLocaleDateString('fr-FR') : '-'}</td>
           <td>${m.date_payment ? new Date(m.date_payment).toLocaleDateString('fr-FR') : '-'}</td>
@@ -410,6 +412,7 @@ function renderTable() {
 
 // === ACTIONS & EVENTS ===
 function initEventListeners() {
+  const missionVat = initMissionVat();
   const multiBtn = document.querySelector('.multi-select-btn');
   const multiDropdown = document.getElementById('multiSelectDropdown');
   
@@ -464,6 +467,7 @@ function initEventListeners() {
 
   document.getElementById('addMissionBtn').addEventListener('click', () => {
     document.getElementById('missionForm').reset();
+    missionVat.refresh();
     document.getElementById('missionId').value = "";
     document.getElementById('missionDialogTitle').textContent = "Nouvelle Mission";
     document.getElementById('missionDialog').showModal();
@@ -482,6 +486,7 @@ function initEventListeners() {
       entity: document.getElementById('missionEntity').value,
       contact: document.getElementById('missionContact').value,
       price: document.getElementById('missionPrice').value || 0,
+      vat_rate: document.getElementById('missionVat').checked ? 20 : 0,
       debours: document.getElementById('missionDebours').value || 0,
       date_validation: document.getElementById('missionDateValidation').value || null,
       date_payment: document.getElementById('missionDatePayment').value || null,
@@ -503,11 +508,11 @@ function initEventListeners() {
 
     if (id) {
       const { error } = await supabase.from('missions').update(missionData).eq('id', id);
-      if (error) showToast("Erreur lors de la modification", "error");
+      if (error) { showToast("Erreur lors de la modification", "error"); return; }
       else showToast("Mission modifiée !");
     } else {
       const { error } = await supabase.from('missions').insert([missionData]);
-      if (error) showToast("Erreur lors de l'ajout", "error");
+      if (error) { showToast("Erreur lors de l'ajout", "error"); return; }
       else showToast("Mission ajoutée !");
     }
 
@@ -543,6 +548,8 @@ function initEventListeners() {
         document.getElementById('missionEntity').value = m.entity || "";
         document.getElementById('missionContact').value = m.contact || "";
         document.getElementById('missionPrice').value = m.price || 0;
+        document.getElementById('missionVat').checked = Number(m.vat_rate) > 0;
+        missionVat.refresh();
         document.getElementById('missionDebours').value = m.debours || 0;
         document.getElementById('missionDateValidation').value = m.date_validation || "";
         document.getElementById('missionDatePayment').value = m.date_payment || "";
