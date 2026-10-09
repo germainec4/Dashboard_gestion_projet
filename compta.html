@@ -141,6 +141,11 @@
         color: var(--danger);
         border-color: var(--danger);
       }
+      #deleteMissionMessage {
+        margin: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
       .missions-table .icon-button svg {
         width: 16px;
         height: 16px;
@@ -918,6 +923,22 @@
         </label>
 
         <button class="button button-primary" type="submit">Enregistrer</button>
+      </form>
+    </dialog>
+
+    <dialog id="deleteMissionDialog" class="dialog confirm-dialog" aria-labelledby="deleteMissionTitle" aria-describedby="deleteMissionMessage">
+      <form method="dialog" class="dialog-content confirm-dialog-content">
+        <div class="confirm-icon-wrapper" aria-hidden="true">
+          <svg class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </div>
+        <h3 id="deleteMissionTitle">Supprimer la mission ?</h3>
+        <p id="deleteMissionMessage" class="panel-copy"></p>
+        <div class="confirm-actions">
+          <button class="button button-secondary" type="submit" value="cancel" autofocus>Annuler</button>
+          <button class="button button-danger-solid" type="submit" value="confirm">Supprimer</button>
+        </div>
       </form>
     </dialog>
 

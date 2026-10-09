@@ -411,6 +411,21 @@ function renderTable() {
 
 
 // === ACTIONS & EVENTS ===
+function confirmMissionDeletion(mission) {
+  const dialog = document.getElementById('deleteMissionDialog');
+  document.getElementById('deleteMissionMessage').textContent = mission?.title
+    ? `La mission « ${mission.title} » sera définitivement supprimée.`
+    : "Cette mission sera définitivement supprimée.";
+  dialog.returnValue = '';
+
+  return new Promise((resolve) => {
+    dialog.addEventListener('close', () => {
+      resolve(dialog.returnValue === 'confirm');
+    }, { once: true });
+    dialog.showModal();
+  });
+}
+
 function initEventListeners() {
   const missionVat = initMissionVat();
   const multiBtn = document.querySelector('.multi-select-btn');
@@ -524,7 +539,8 @@ function initEventListeners() {
     const deleteBtn = e.target.closest('.delete-btn');
     if (deleteBtn) {
       e.stopPropagation();
-      if (confirm("Supprimer cette mission ?")) {
+      const mission = missions.find(m => m.id === deleteBtn.dataset.id);
+      if (await confirmMissionDeletion(mission)) {
         const { error } = await supabase.from('missions').delete().eq('id', deleteBtn.dataset.id);
         if (error) {
           showToast("Erreur lors de la suppression", "error");
