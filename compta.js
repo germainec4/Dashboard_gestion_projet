@@ -70,7 +70,7 @@ async function init() {
     return;
   }
 
-  fiscalPanel = initFiscalPanel(() => missions, session.user.id, supabase);
+  fiscalPanel = initFiscalPanel(() => missions, session.user.id, supabase, renderKPIs);
   await loadData();
   refreshQontoBalance();
   initEventListeners();
@@ -166,10 +166,13 @@ function renderKPIs() {
   
   const advanceEl = document.getElementById('kpi-salary-advance');
   if (advanceEl) {
+    const vatDueCents = fiscalPanel?.getVatDue();
     if (qontoBalanceCents === null) {
       advanceEl.textContent = "Solde indisponible";
+    } else if (vatDueCents == null) {
+      advanceEl.textContent = "Estimation indisponible (TVA)";
     } else {
-      const remainingForSalary = qontoBalance - soldeTotal;
+      const remainingForSalary = qontoBalance - soldeTotal - vatDueCents / 100;
       const monthsAdvance = Math.max(0, remainingForSalary / 2200);
       advanceEl.textContent = `${monthsAdvance.toFixed(1)} mois de salaire d'avance`;
     }

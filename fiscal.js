@@ -18,14 +18,14 @@ function download(content, type, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function initFiscalPanel(getMissions, userId, supabase) {
+export function initFiscalPanel(getMissions, userId, supabase, onVatChange) {
   const el = id => document.getElementById(id);
   const dialog = el('fiscalDialog');
   const initial = defaultPeriod();
   let year = initial.year;
   let quarter = initial.quarter;
   let activeTab = 'quarter';
-  const vatPanel = initVatPanel(getMissions, userId, supabase);
+  const vatPanel = initVatPanel(getMissions, userId, supabase, onVatChange);
   const tabs = { quarter: 'fiscalQuarter', annual: 'fiscalAnnual', vat: 'fiscalVat' };
   let snapshot;
   let simulateCommitted = false;
@@ -178,5 +178,5 @@ export function initFiscalPanel(getMissions, userId, supabase) {
     }
   });
   loadSettings();
-  return { refresh };
+  return { refresh, getVatDue: vatPanel.getVatDue };
 }

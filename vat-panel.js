@@ -4,11 +4,22 @@ import { cents } from './fiscal-model.js';
 const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value / 100);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function initVatPanel(getMissions, userId, supabase) {
+export function initVatPanel(getMissions, userId, supabase, onChange = () => {}) {
   const panel = document.getElementById('fiscalVatPanel');
   const records = new Map();
   let selectedYear;
   let saving = false;
+  function getVatDue() {
+    const year = new Date().getFullYear();
+    const state = records.get(year);
+    if (!state || state.loading || state.error) return null;
+    try {
+      const data = summarizeVat(getMissions(), year, state.data);
+      if (data.issues.length) return null;
+      // A VAT credit is not cash available for salary payments.
+      return Math.max(0, data.balance);
+    } catch { return null; }
+  }
   function render() {
     const state = records.get(selectedYear);
     if (!state || state.loading) {
@@ -50,11 +61,13 @@ export function initVatPanel(getMissions, userId, supabase) {
     if (records.get(year)?.loading || (records.has(year) && !force)) { if (!saving) render(); return; }
     records.set(year, { loading: true });
     render();
+    onChange();
     try {
       const { data, error } = await supabase.from('vat_years').select('deductible,remitted,opening_balance').eq('user_id', userId).eq('year', year).maybeSingle();
       if (error) throw error;
       records.set(year, { data: data || {} });
     } catch { records.set(year, { error: true }); }
+    onChange();
     if (selectedYear === year && !saving) render();
   }
   panel.addEventListener('click', event => {
@@ -77,6 +90,7 @@ export function initVatPanel(getMissions, userId, supabase) {
       const { data, error } = await supabase.from('vat_years').upsert({ user_id: userId, year, ...values }, { onConflict: 'user_id,year' }).select('deductible,remitted,opening_balance').single();
       if (error) throw error;
       records.set(year, { data });
+      onChange();
       render();
       if (selectedYear === year) {
         panel.querySelector('details').open = true;
@@ -85,5 +99,6 @@ export function initVatPanel(getMissions, userId, supabase) {
     } catch { feedback.textContent = 'Échec de l’enregistrement. Réessaie.'; }
     finally { saving = false; button.disabled = false; document.getElementById('fiscalYear').disabled = false; }
   });
-  return { refresh };
+  refresh(new Date().getFullYear());
+  return { refresh, getVatDue };
 }
