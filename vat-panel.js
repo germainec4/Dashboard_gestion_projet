@@ -1,6 +1,8 @@
 import { cents, day } from './fiscal-model.js';
-import { defaultVatPeriod, summarizeMonthlyVat, validateVatRecord } from './vat-monthly.js';
+import { defaultVatPeriod, summarizeMonthlyVat } from './vat-monthly.js';
 import { initVatDeductions } from './vat-deductions.js';
+import { prepareVatRecord } from './vat-editor.js';
+import { vatMonthForms } from './vat-forms.js';
 
 const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value / 100);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -13,6 +15,8 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
   let selectedPeriod = defaultVatPeriod();
   let records = [], legacy = [];
   let loading = false, loaded = false, error = false, saving = false;
+  let feedbackMessage = '';
+  const busyControls = new Map();
   let request;
   const deductions = initVatDeductions({ supabase, userId,
     onBusy: value => { setBusy(value); onChange(); }, onRefresh: () => refresh(selectedPeriod, true) });
@@ -23,8 +27,17 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
   }
   function setBusy(busy) {
     saving = busy;
-    for (const id of ['fiscalYear', 'fiscalMonth']) document.getElementById(id).disabled = busy;
-    panel.querySelectorAll('button,input,textarea').forEach(input => { input.disabled = busy; });
+    if (busy) {
+      const controls = [...panel.querySelectorAll('button,input,select,textarea'), ...['fiscalYear', 'fiscalMonth'].map(id => document.getElementById(id))];
+      for (const control of controls) {
+        if (!busyControls.has(control)) busyControls.set(control, control.disabled);
+        control.disabled = true;
+      }
+    } else {
+      for (const [control, disabled] of busyControls) control.disabled = disabled;
+      busyControls.clear();
+    }
+    panel.setAttribute?.('aria-busy', String(busy));
   }
   function render() {
     if (loading || !loaded) {
@@ -46,63 +59,42 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
       panel.innerHTML = '<p class="fiscal-muted">Aucune période TVA suivie pour ce mois.</p>';
       return;
     }
-    const declarationMonth = new Date(day(month.period).getFullYear(), day(month.period).getMonth() + 1, 1)
-      .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const paid = month.declared && month.payable > 0 && !month.remaining;
+    const title = month.credit ? 'Crédit à reporter' : paid ? 'Paiement confirmé' : month.provisional ? 'TVA à prévoir' : month.declared ? 'Reste à payer' : 'TVA à déclarer';
+    const explanation = month.provisional ? 'Estimation du mois en cours. La déclaration s’enregistre une fois le mois terminé.'
+      : !month.declared ? 'Prépare tes justificatifs, puis enregistre ta déclaration une fois effectuée.'
+      : month.credit ? 'Ce crédit est reporté automatiquement au mois suivant.'
+      : !month.payable ? 'Aucun règlement à prévoir pour cette déclaration.'
+      : paid ? 'Le débit a été confirmé pour cette déclaration.' : 'La déclaration est enregistrée. Le débit reste à confirmer.';
+    const forms = vatMonthForms(month);
     const firstActivity = data.months.find(row => row.collected || records.some(record => record.period === row.period))?.period || selectedPeriod;
     const history = data.months.filter(row => row.period.slice(0, 4) === selectedPeriod.slice(0, 4) && (row.period >= firstActivity || row.period === selectedPeriod)).reverse();
     panel.innerHTML = `
       <div class="fiscal-hero">
-        <div class="vat-heading"><p class="section-kicker">${month.credit ? 'Crédit à reporter' : 'Reste à payer'} · ${escape(periodLabel(month.period))}</p><span class="fiscal-state ${month.status.style}">${month.status.label}</span></div>
-        <strong class="fiscal-amount">${money(month.credit || month.remaining)}</strong>
-        <p class="fiscal-muted">${month.provisional ? 'Provision du mois en cours' : `Période : ${escape(periodLabel(month.period))} · règlement en ${declarationMonth}`}${month.estimated ? ' · montant estimé' : ''}</p>
-        ${month.expected_payment_date && month.remaining ? `<p class="fiscal-muted">Prélèvement attendu vers le ${dateLabel(month.expected_payment_date)} · date estimée</p>` : ''}
-        ${month.payment_date ? `<p class="fiscal-muted">Débit confirmé le ${dateLabel(month.payment_date)} : ${money(month.remitted)}</p>` : ''}
-        ${month.note ? `<p class="vat-note">${escape(month.note)}</p>` : ''}
+        <div class="vat-heading"><p class="section-kicker">${title} · ${escape(periodLabel(month.period))}</p><span class="fiscal-state ${month.status.style}">${month.status.label}</span></div>
+        <strong class="fiscal-amount">${money(month.credit || (paid ? month.remitted : month.remaining))}</strong>
+        <p class="vat-hint">${explanation}${month.estimated && !month.provisional ? ' Montant estimé.' : ''}</p>
+        ${month.expected_payment_date && month.remaining ? `<p class="vat-payment-date">Prélèvement prévu vers le ${dateLabel(month.expected_payment_date)}</p>` : ''}
+        ${month.payment_date ? `<p class="vat-payment-date">Débit du ${dateLabel(month.payment_date)} · ${money(month.remitted)}</p>` : ''}
       </div>
-      <div class="fiscal-stats vat-stats">
-        <div class="fiscal-stat"><p class="fiscal-muted">TVA collectée du mois</p><strong>${money(month.collected)}</strong></div>
-        <div class="fiscal-stat"><p class="fiscal-muted">TVA déductible du mois</p><strong>${money(month.deductible)}</strong></div>
-        <div class="fiscal-stat"><p class="fiscal-muted">Crédit antérieur disponible</p><strong>${money(month.carriedCredit + month.openingCredit)}</strong></div>
-        <div class="fiscal-stat"><p class="fiscal-muted">TVA nette à reverser${month.estimated ? ' · estimée' : ' · déclarée'}</p><strong>${money(month.payable)}</strong></div>
+      <div class="vat-overview">
+        <div><span>TVA collectée du mois</span><strong>${money(month.collected)}</strong></div>
+        <div><span>Déductions retenues</span><strong>${money(month.deductible)}</strong></div>
+        ${month.carriedCredit + month.openingCredit ? `<div><span>Crédit antérieur disponible</span><strong>${money(month.carriedCredit + month.openingCredit)}</strong></div>` : ''}
       </div>
-      ${month.reverseChargeDue ? `<div class="vat-reverse-summary fiscal-muted"><strong>Autoliquidation incluse dans le calcul</strong><span>Base HT : ${money(month.reverseChargeBase)} · TVA due : ${money(month.reverseChargeDue)} · TVA déductible : ${money(month.reverseChargeDeductible)}</span>${month.reverseChargeRegions.eu || month.reverseChargeRegions.non_eu ? `<span>Bases HT des services : UE hors France ${money(month.reverseChargeRegions.eu)} · hors UE ${money(month.reverseChargeRegions.non_eu)}</span>` : ''}<span>TVA totale due : ${money(month.collected + month.reverseChargeDue)} · déductible totale : ${money(month.deductible)}</span></div>` : ''}
-      <p class="fiscal-muted">Déjà payé pour cette déclaration : <strong>${money(month.remitted)}</strong>. ${month.credit ? `Crédit reporté au mois suivant : ${money(month.credit)}.` : ''}</p>
-      <div data-vat-deductions-host></div>
-      ${month.deduction_needs_review && !month.declared ? '<p class="fiscal-notice">Des justificatifs utilisés ont changé. Vérifie le bloc TVA déductible puis utilise à nouveau le total validé. La réserve de trésorerie attend cette vérification.</p>' : ''}
-      ${month.declared && month.estimated ? '<p class="fiscal-notice">Déclaration confirmée. Renseigne le solde réellement déclaré pour figer le montant ; le montant affiché reste une estimation issue des missions et déductions.</p>' : ''}
+      ${month.reverseChargeDue ? `<details class="vat-option vat-calculation"><summary>Détail du calcul et autoliquidation</summary><div class="vat-reverse-summary vat-hint"><span>TVA due par autoliquidation : ${money(month.reverseChargeDue)}</span><span>Dont TVA déductible : ${money(month.reverseChargeDeductible)} · comprise dans les déductions</span><span>Base HT : ${money(month.reverseChargeBase)}</span>${month.reverseChargeRegions.eu || month.reverseChargeRegions.non_eu ? `<span>Services UE hors France : ${money(month.reverseChargeRegions.eu)} HT · hors UE : ${money(month.reverseChargeRegions.non_eu)} HT</span>` : ''}<span>TVA totale due : ${money(month.collected + month.reverseChargeDue)} · déductible totale : ${money(month.deductible)}</span></div></details>` : ''}
+      <p class="vat-save-status" data-vat-status role="status" aria-live="polite">${escape(feedbackMessage)}</p>
+      ${month.deduction_needs_review && !month.declared ? '<p class="fiscal-notice">Des justificatifs ont changé. Vérifie-les et applique à nouveau les montants validés pour mettre à jour l’estimation.</p>' : ''}
+      ${month.declared && month.estimated ? '<p class="vat-hint">Le montant réellement déclaré reste à préciser. <button class="vat-text-action" type="button" data-vat-open="declaration">Préciser le montant</button></p>' : ''}
       ${!month.estimated && month.net !== month.computedNet ? `<p class="fiscal-notice">Solde déclaré : ${money(month.net)} · calcul actuel : ${money(month.computedNet)}. Vérifie cet écart avant toute régularisation.</p>` : ''}
       ${month.overpaid ? `<p class="fiscal-notice">Versement supérieur au montant à payer de ${money(month.overpaid)}. Cet écart n’est pas transformé automatiquement en crédit de TVA.</p>` : ''}
-      <details class="fiscal-details" data-vat-editor><summary>Déductions, déclaration et paiement</summary>
-        <form class="vat-adjustments">
-          <div class="fiscal-settings-grid">
-            <label>TVA déductible du mois (€)<input name="deductible" type="number" min="0" step="0.01" value="${month.deductible / 100}" required></label>
-            <label>Crédit initial complémentaire (€)<input name="opening_credit" type="number" min="0" step="0.01" value="${month.openingCredit / 100}" required><small class="fiscal-muted">Uniquement un crédit antérieur absent du suivi. Le report calculé ci-dessus est automatique.</small></label>
-          </div>
-          <details class="fiscal-details"><summary>Autoliquidation · ajustement manuel</summary><div class="fiscal-settings-grid">
-            <label>Base HT autoliquidée (€)<input name="reverse_charge_base" type="number" min="0" step="0.01" value="${month.reverseChargeBase / 100}" required></label>
-            <label>TVA due par autoliquidation (€)<input name="reverse_charge_due" type="number" min="0" step="0.01" value="${month.reverseChargeDue / 100}" required></label>
-            <label>Dont TVA autoliquidée déductible (€)<input name="reverse_charge_deductible" type="number" min="0" step="0.01" value="${month.reverseChargeDeductible / 100}" required><small class="fiscal-muted">Déjà comprise dans la TVA déductible totale du mois.</small></label>
-          </div></details>
-          <label class="fiscal-check"><input name="declared" type="checkbox" ${month.declared ? 'checked' : ''} ${month.provisional ? 'disabled' : ''}>Déclaration effectuée pour ${escape(periodLabel(month.period))}</label>
-          <div class="fiscal-settings-grid">
-            <label>Solde réellement déclaré (€)<input name="declared_balance" type="number" step="0.01" value="${month.declaredBalance === null ? '' : month.declaredBalance / 100}" placeholder="À compléter"><small class="fiscal-muted">Positif : à payer · négatif : crédit. Vide : estimation.</small></label>
-            <label>Date de déclaration, si connue<input name="declared_on" type="date" value="${escape(month.declared_on)}"></label>
-          </div>
-          <div class="fiscal-settings-grid">
-            <label>Montant réellement débité (€)<input name="remitted" type="number" min="0" step="0.01" value="${month.remitted / 100}" required></label>
-            <label>Date effective du débit<input name="payment_date" type="date" value="${escape(month.payment_date)}"></label>
-          </div>
-          <p class="fiscal-muted">Un prélèvement annoncé reste à payer jusqu’à confirmation du débit sur Qonto.</p>
-          <label>Date estimée du prélèvement<input name="expected_payment_date" type="date" value="${escape(month.expected_payment_date)}"></label>
-          <label>Note<textarea name="note" rows="2" maxlength="2000">${escape(month.note)}</textarea></label>
-          <div class="fiscal-actions"><button class="button button-secondary" type="submit">Enregistrer ce mois</button><a class="button button-secondary" href="https://www.impots.gouv.fr/" target="_blank" rel="noopener noreferrer">Espace professionnel ↗</a></div>
-          <p class="fiscal-muted" data-vat-feedback role="status" aria-live="polite"></p>
-        </form>
-      </details>
+      ${forms.workflow}
+      <div data-vat-deductions-host></div>
+      <div class="vat-secondary-sections">${forms.note}${forms.advanced}</div>
       <details class="fiscal-details"><summary>Encaissements · ${escape(periodLabel(month.period))} · ${month.payments.length}</summary>
         ${month.payments.length ? `<div class="fiscal-table-wrap"><table class="fiscal-table"><thead><tr><th>Mission</th><th>Encaissement</th><th>HT</th><th>TVA</th><th>TTC</th></tr></thead><tbody>${month.payments.map(p => `<tr><td>${escape(p.mission.title)}</td><td>${p.payment.toLocaleDateString('fr-FR')}</td><td>${money(p.net)}</td><td>${money(p.vat)}</td><td>${money(p.gross)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="fiscal-muted">Aucune TVA encaissée pendant ce mois.</p>'}
       </details>
-      <details class="fiscal-details" open><summary>Historique mensuel · ${selectedPeriod.slice(0, 4)}</summary>
+      <details class="fiscal-details"><summary>Historique mensuel · ${selectedPeriod.slice(0, 4)}</summary>
         <div class="fiscal-table-wrap"><table class="fiscal-table"><thead><tr><th>Mois</th><th>État</th><th>TVA nette</th><th>Payé</th><th>Reste / crédit</th></tr></thead><tbody>${history.map(row => `<tr ${row.period === selectedPeriod ? 'aria-current="true"' : ''}><td><button class="vat-month-link" type="button" data-vat-period="${row.period}">${escape(periodLabel(row.period))}</button></td><td><span class="fiscal-state ${row.status.style}">${row.status.label}</span></td><td>${money(row.payable)}</td><td>${money(row.remitted)}</td><td>${row.credit ? `${money(row.credit)} de crédit` : money(row.remaining)}</td></tr>`).join('')}</tbody></table></div>
       </details>
       ${data.issues.length ? `<details class="fiscal-details"><summary>${data.issues.length} mission(s) exclue(s) · à vérifier</summary><ul>${data.issues.map(i => `<li>${escape(i.mission.title)} — ${escape(i.reason)}</li>`).join('')}</ul></details>` : ''}
@@ -121,6 +113,7 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
   }
   async function refresh(period = selectedPeriod, force = false) {
     if (saving) return;
+    if (period !== selectedPeriod || force) feedbackMessage = '';
     selectedPeriod = period;
     if (loading) return request;
     if (loaded && !force) { render(); return; }
@@ -145,8 +138,16 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
   panel.addEventListener('click', async event => {
     if (event.target.closest('[data-vat-deductions]')) return;
     if (event.target.closest('[data-vat-retry]')) { await refresh(selectedPeriod, true); return; }
+    const open = event.target.closest('[data-vat-open]')?.dataset.vatOpen;
+    if (open && !saving) {
+      const section = panel.querySelector(`[data-vat-section="${open}"]`);
+      for (let node = section; node && node !== panel; node = node.parentElement) if (node.tagName === 'DETAILS') node.open = true;
+      section?.scrollIntoView({ block: 'nearest' });
+      section?.querySelector('input,select,textarea')?.focus({ preventScroll: true });
+      return;
+    }
     const period = event.target.closest('[data-vat-period]')?.dataset.vatPeriod;
-    if (period && !saving) { selectedPeriod = period; onSelect(period); render(); return; }
+    if (period && !saving) { feedbackMessage = ''; selectedPeriod = period; onSelect(period); render(); return; }
     const year = event.target.closest('[data-vat-reconcile]')?.dataset.vatReconcile;
     if (!year || saving) return;
     setBusy(true);
@@ -159,40 +160,46 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
       render();
     } catch {
       setBusy(false);
-      panel.querySelector('[data-vat-feedback]').textContent = 'Échec de la confirmation de reprise. Réessaie.';
+      panel.querySelector('[data-vat-status]').textContent = 'Échec de la confirmation de reprise. Réessaie.';
     } finally { onChange(); }
+  });
+  panel.addEventListener('input', event => {
+    const form = event.target.closest('[data-vat-form]');
+    if (!form) return;
+    event.target.removeAttribute('aria-invalid');
+    event.target.setCustomValidity?.('');
+    const error = form.querySelector(`[data-vat-error="${event.target.name}"]`);
+    if (error) { error.hidden = true; error.textContent = ''; }
+    if (form.dataset.vatForm === 'payment' && event.target.name === 'remitted') {
+      form.elements.payment_date.required = Number(event.target.value) > 0;
+    }
   });
   panel.addEventListener('submit', async event => {
     if (event.target.closest('[data-vat-deductions]')) return;
     event.preventDefault();
     if (saving) return;
     const form = event.target;
+    if (!form.dataset.vatForm) return;
     if (!form.reportValidity()) return;
     const feedback = form.querySelector('[data-vat-feedback]');
-    const value = name => form.elements[name].value;
-    const record = { user_id: userId, period: selectedPeriod,
-      deductible: value('deductible'), opening_credit: value('opening_credit'), declared: form.elements.declared.checked,
-      reverse_charge_base: value('reverse_charge_base'), reverse_charge_due: value('reverse_charge_due'),
-      reverse_charge_deductible: value('reverse_charge_deductible'),
-      declared_balance: value('declared_balance') === '' ? null : value('declared_balance'), declared_on: value('declared_on') || null,
-      remitted: value('remitted'), payment_date: value('payment_date') || null, expected_payment_date: value('expected_payment_date') || null,
-      note: value('note').trim() };
+    const values = {};
+    for (const name of ['declared_amount', 'declared_kind', 'declared_on', 'remitted', 'payment_date', 'expected_payment_date',
+      'deductible', 'reverse_charge_base', 'reverse_charge_due', 'reverse_charge_deductible', 'opening_credit', 'note']) {
+      if (form.elements[name]) values[name] = form.elements[name].value;
+    }
+    let record;
     try {
-      const parsed = validateVatRecord(record);
-      Object.assign(record, { deductible: parsed.deductible / 100, opening_credit: parsed.openingCredit / 100,
-        reverse_charge_base: parsed.reverseChargeBase / 100, reverse_charge_due: parsed.reverseChargeDue / 100,
-        reverse_charge_deductible: parsed.reverseChargeDeductible / 100,
-        remitted: parsed.remitted / 100, declared_balance: parsed.declaredBalance === null ? null : parsed.declaredBalance / 100 });
-      const previous = records.find(row => row.period === record.period);
-      const sameDeduction = cents(previous?.deductible ?? 0) === parsed.deductible
-        && cents(previous?.reverse_charge_base ?? 0) === parsed.reverseChargeBase
-        && cents(previous?.reverse_charge_due ?? 0) === parsed.reverseChargeDue
-        && cents(previous?.reverse_charge_deductible ?? 0) === parsed.reverseChargeDeductible;
-      Object.assign(record, { deduction_source: sameDeduction ? previous?.deduction_source || 'manual' : 'manual',
-        deduction_snapshot: sameDeduction ? previous?.deduction_snapshot || [] : [],
-        deduction_applied_at: sameDeduction ? previous?.deduction_applied_at || null : null,
-        deduction_needs_review: sameDeduction ? previous?.deduction_needs_review || false : false });
-    } catch (validationError) { feedback.textContent = validationError.message; return; }
+      const previous = records.find(row => row.period === selectedPeriod);
+      record = prepareVatRecord({ ...previous, user_id: userId }, selectedPeriod, form.dataset.vatForm, values);
+    } catch (validationError) {
+      const field = form.elements[validationError.field];
+      const message = field && form.querySelector(`[data-vat-error="${validationError.field}"]`);
+      if (message) {
+        message.hidden = false; message.textContent = validationError.message;
+        field.setAttribute('aria-invalid', 'true'); field.focus();
+      } else feedback.textContent = validationError.message;
+      return;
+    }
     setBusy(true);
     onChange();
     feedback.textContent = 'Enregistrement…';
@@ -201,9 +208,9 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
       if (saveError || !data) throw saveError || new Error('Aucune déclaration enregistrée.');
       records = [...records.filter(row => row.period !== record.period), data];
       setBusy(false);
+      feedbackMessage = ({ declaration: 'Déclaration enregistrée.', payment: 'Paiement enregistré.', schedule: 'Date prévue enregistrée.',
+        adjustments: 'Correction enregistrée.', credit: 'Ancien crédit enregistré.', note: 'Note enregistrée.' })[form.dataset.vatForm];
       render();
-      panel.querySelector('[data-vat-editor]').open = true;
-      panel.querySelector('[data-vat-feedback]').textContent = 'Mois enregistré.';
     } catch {
       setBusy(false);
       feedback.textContent = 'Échec de l’enregistrement. Réessaie.';

@@ -12,7 +12,7 @@ const paid = (price, date = period) => ({ title: '<Mission>', price, vat_rate: 2
 function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
   const previousDocument = globalThis.document;
   t.after(() => { globalThis.document = previousDocument; });
-  const listeners = {}, feedback = {}, editor = {}, controls = { fiscalYear: {}, fiscalMonth: {} };
+  const listeners = {}, feedback = {}, editor = {}, controls = { fiscalYear: { disabled: false }, fiscalMonth: { disabled: false } };
   const panel = { innerHTML: '', addEventListener: (type, handler) => { listeners[type] = handler; },
     querySelector: selector => selector === '[data-vat-editor]' ? editor : feedback, querySelectorAll: () => [] };
   globalThis.document = { getElementById: id => id === 'fiscalVatPanel' ? panel : controls[id] };
@@ -33,13 +33,10 @@ function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
     state.reads[offset + 1].resolve({ data: legacy, error: null });
     await new Promise(resolve => setImmediate(resolve));
   };
-  const save = async (values = {}) => {
+  const save = async (action, values = {}) => {
     await api.refresh(period);
-    const defaults = { deductible: '0', reverse_charge_base: '0', reverse_charge_due: '0', reverse_charge_deductible: '0', opening_credit: '0', declared_balance: '', declared_on: '',
-      remitted: '0', payment_date: '', expected_payment_date: '', note: '' };
-    const elements = Object.fromEntries(Object.entries({ ...defaults, ...values }).map(([name, value]) => [name, { value }]));
-    elements.declared = { checked: values.declared ?? true };
-    await listeners.submit({ preventDefault() {}, target: { closest: () => null, reportValidity: () => true, elements, querySelector: () => feedback } });
+    const elements = Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { value }]));
+    await listeners.submit({ preventDefault() {}, target: { dataset: { vatForm: action }, closest: () => null, reportValidity: () => true, elements, querySelector: selector => selector === '[data-vat-feedback]' ? feedback : null } });
   };
   return { api, state, resolveReads, save, panel, feedback, controls };
 }
@@ -68,18 +65,19 @@ test('Changing the viewed month or year never removes outstanding months from th
 
 test('Marking a declaration does not settle it; a confirmed debit changes the reserve', async t => {
   const { api, state, resolveReads, save, panel, controls } = setup(t);
-  await resolveReads();
-  await save({ declared_balance: '150', deductible: '50', expected_payment_date: today });
+  await resolveReads([{ period, deductible: 50 }]);
+  await save('declaration', { declared_amount: '150', declared_kind: 'payable' });
+  await save('schedule', { expected_payment_date: today });
   assert.equal(api.getVatDue(), 25000);
   assert.match(panel.innerHTML, /prélèvement en attente/);
   assert.equal(state.saves[0].period, period);
   assert.equal(state.saves[0].remitted, 0);
-  await save({ declared_balance: '150', deductible: '50', remitted: '150', payment_date: today });
+  await save('payment', { remitted: '150', payment_date: today });
   assert.equal(api.getVatDue(), 10000);
   assert.match(panel.innerHTML, /Payée/);
   assert.equal(controls.fiscalMonth.disabled, false);
   state.saveError = new Error('Offline');
-  await save({ declared_balance: '200' });
+  await save('declaration', { declared_amount: '200', declared_kind: 'payable' });
   assert.equal(api.getVatDue(), 10000);
 });
 
@@ -108,10 +106,10 @@ test('Credits do not increase cash and unreconciled archives or invalid missions
 
 test('Validation errors never write payment data to Supabase', async t => {
   const { state, resolveReads, save, feedback } = setup(t);
-  await resolveReads();
-  await save({ remitted: '200' });
+  await resolveReads([{ period, declared: true }]);
+  await save('payment', { remitted: '200' });
   assert.equal(state.saves.length, 0);
-  assert.match(feedback.textContent, /date de débit/);
+  assert.match(feedback.textContent, /date du débit/);
 });
 
 test('An open month with changed applied receipts blocks the reserve; a declared snapshot stays fixed', async t => {
