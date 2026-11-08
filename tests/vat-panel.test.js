@@ -1,108 +1,114 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initVatPanel } from '../vat-panel.js';
+import { defaultVatPeriod, vatPeriod } from '../vat-monthly.js';
 
-const year = new Date().getFullYear();
-const paid = (price, other = {}) => ({ price, vat_rate: 20, status: 'payee', date_payment: `${year}-01-01`, ...other });
+const now = new Date();
+const period = defaultVatPeriod(now);
+const currentPeriod = vatPeriod(now);
+const today = `${currentPeriod.slice(0, 8)}${String(now.getDate()).padStart(2, '0')}`;
+const paid = (price, date = period) => ({ title: '<Mission>', price, vat_rate: 20, status: 'payee', date_payment: date });
 
-function setup(t, missions) {
+function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
   const previousDocument = globalThis.document;
   t.after(() => { globalThis.document = previousDocument; });
-  const listeners = {};
-  const feedback = {};
-  const panel = {
-    innerHTML: '',
-    addEventListener: (type, handler) => { listeners[type] = handler; },
-    querySelector: selector => selector === 'details' ? {} : feedback
-  };
-  const yearInput = {};
-  globalThis.document = { getElementById: id => id === 'fiscalVatPanel' ? panel : yearInput };
+  const listeners = {}, feedback = {}, editor = {}, controls = { fiscalYear: {}, fiscalMonth: {} };
+  const panel = { innerHTML: '', addEventListener: (type, handler) => { listeners[type] = handler; },
+    querySelector: selector => selector === '[data-vat-editor]' ? editor : feedback, querySelectorAll: () => [] };
+  globalThis.document = { getElementById: id => id === 'fiscalVatPanel' ? panel : controls[id] };
   const state = { missions, reads: [], saves: [], changes: 0, saveError: null };
-  const supabase = {
-    from(table) {
-      assert.equal(table, 'vat_years');
-      const filters = {};
-      let saved;
-      return {
-        select() { return this; },
-        eq(key, value) { filters[key] = value; return this; },
-        maybeSingle() { return new Promise(resolve => state.reads.push({ filters, resolve })); },
-        upsert(data) { saved = data; state.saves.push(data); return this; },
-        async single() { return { data: saved, error: state.saveError }; }
-      };
-    }
-  };
+  const supabase = { from(table) {
+    const filters = {};
+    let saved;
+    return {
+      select() { return this; }, eq(key, value) { filters[key] = value; return this; }, order() { return this; },
+      range() { return new Promise(resolve => state.reads.push({ table, filters, resolve })); },
+      upsert(data) { saved = data; state.saves.push(data); return this; },
+      async single() { return { data: saved, error: state.saveError }; }
+    };
+  } };
   const api = initVatPanel(() => state.missions, 'test-user', supabase, () => { state.changes++; });
-  const resolveRead = async (index, data = {}, error = null) => {
-    state.reads[index].resolve({ data, error });
+  const resolveReads = async (records = [], legacy = [], error = null, offset = 0) => {
+    state.reads[offset].resolve({ data: records, error });
+    state.reads[offset + 1].resolve({ data: legacy, error: null });
     await new Promise(resolve => setImmediate(resolve));
   };
-  const save = async values => {
-    const form = {
-      reportValidity: () => true,
-      elements: Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { value }])),
-      querySelector: () => ({})
-    };
-    await listeners.submit({ preventDefault() {}, target: form });
+  const save = async (values = {}) => {
+    const defaults = { deductible: '0', opening_credit: '0', declared_balance: '', declared_on: '',
+      remitted: '0', payment_date: '', expected_payment_date: '', note: '' };
+    const elements = Object.fromEntries(Object.entries({ ...defaults, ...values }).map(([name, value]) => [name, { value }]));
+    elements.declared = { checked: values.declared ?? true };
+    await listeners.submit({ preventDefault() {}, target: { reportValidity: () => true, elements, querySelector: () => feedback } });
   };
-  return { api, state, resolveRead, save };
+  return { api, state, resolveReads, save, panel, feedback, controls };
 }
 
-test('Salary reserve waits for current-year adjustments and deducts remittances and deductible VAT', async t => {
-  const { api, state, resolveRead } = setup(t, [paid(1000), paid(9000, { status: 'en_cours', date_payment: null, quote_accepted: true })]);
+test('Reserve waits for both monthly and legacy records, and includes previous and current months', async t => {
+  const { api, state, resolveReads, panel } = setup(t);
   assert.equal(api.getVatDue(), null);
-  assert.deepEqual(state.reads[0].filters, { user_id: 'test-user', year });
-  await resolveRead(0, { deductible: 20, remitted: 50, opening_balance: 10 });
-  assert.equal(api.getVatDue(), 14000);
-  assert.equal(state.changes, 2);
-  state.missions.push(paid(500));
-  assert.equal(api.getVatDue(), 24000);
+  assert.deepEqual(state.reads.map(read => read.table), ['vat_months', 'vat_years']);
+  assert.ok(state.reads.every(read => read.filters.user_id === 'test-user'));
+  await resolveReads([{ period, deductible: 50 }]);
+  assert.equal(api.getVatDue(), 25000);
+  assert.match(panel.innerHTML, /TVA collectée du mois/);
+  assert.match(panel.innerHTML, /&lt;Mission&gt;/);
+  state.missions.push(paid(100));
+  assert.equal(api.getVatDue(), 27000);
 });
 
-test('Historical VAT is covered by the opening balance, and viewing another year does not change the salary reserve', async t => {
-  const { api, state, resolveRead } = setup(t, [paid(1000), paid(5000, { date_payment: `${year - 1}-12-31` })]);
-  await resolveRead(0, { opening_balance: 100 });
+test('Changing the viewed month or year never removes outstanding months from the reserve', async t => {
+  const { api, resolveReads } = setup(t);
+  await resolveReads();
+  await api.refresh(`${now.getFullYear() - 1}-12-01`);
   assert.equal(api.getVatDue(), 30000);
-  const refresh = api.refresh(year - 1);
+  await api.refresh(currentPeriod);
   assert.equal(api.getVatDue(), 30000);
-  await resolveRead(1, { remitted: 1000 });
+});
+
+test('Marking a declaration does not settle it; a confirmed debit changes the reserve', async t => {
+  const { api, state, resolveReads, save, panel, controls } = setup(t);
+  await resolveReads();
+  await save({ declared_balance: '150', deductible: '50', expected_payment_date: today });
+  assert.equal(api.getVatDue(), 25000);
+  assert.match(panel.innerHTML, /prélèvement en attente/);
+  assert.equal(state.saves[0].period, period);
+  assert.equal(state.saves[0].remitted, 0);
+  await save({ declared_balance: '150', deductible: '50', remitted: '150', payment_date: today });
+  assert.equal(api.getVatDue(), 10000);
+  assert.match(panel.innerHTML, /Payée/);
+  assert.equal(controls.fiscalMonth.disabled, false);
+  state.saveError = new Error('Offline');
+  await save({ declared_balance: '200' });
+  assert.equal(api.getVatDue(), 10000);
+});
+
+test('A failed load blocks the reserve; a forced refresh restores it', async t => {
+  const { api, resolveReads } = setup(t);
+  await resolveReads([], [], new Error('Offline'));
+  assert.equal(api.getVatDue(), null);
+  const refresh = api.refresh(period, true);
+  await resolveReads([], [], null, 2);
   await refresh;
-  assert.equal(state.reads[1].filters.year, year - 1);
   assert.equal(api.getVatDue(), 30000);
 });
 
-test('A credit never increases available cash and a year without an adjustment record uses zero adjustments', async t => {
-  const { api, resolveRead } = setup(t, [paid(1000)]);
-  await resolveRead(0, { deductible: 250 });
+test('Credits do not increase cash and unreconciled archives or invalid missions block the reserve', async t => {
+  const { api, state, resolveReads } = setup(t);
+  await resolveReads([{ period, deductible: 400 }]);
   assert.equal(api.getVatDue(), 0);
-  const refresh = api.refresh(year, true);
+  state.missions.push({ ...paid(100), date_payment: null });
   assert.equal(api.getVatDue(), null);
-  await resolveRead(1, null);
+  state.missions.pop();
+  const refresh = api.refresh(period, true);
+  await resolveReads([], [{ year: now.getFullYear() - 1, remitted: 50 }], null, 2);
   await refresh;
-  assert.equal(api.getVatDue(), 20000);
-});
-
-test('Loading failures and inconsistent taxable missions make the estimate unavailable; retry restores it', async t => {
-  const { api, state, resolveRead } = setup(t, [paid(1000)]);
-  await resolveRead(0, null, new Error('Offline'));
-  assert.equal(api.getVatDue(), null);
-  const refresh = api.refresh(year, true);
-  await resolveRead(1);
-  await refresh;
-  assert.equal(api.getVatDue(), 20000);
-  state.missions.push(paid(200, { date_payment: null }));
   assert.equal(api.getVatDue(), null);
 });
 
-test('Saving VAT remittances updates the salary reserve and notifies the dashboard; a failed save keeps the saved amount', async t => {
-  const { api, state, resolveRead, save } = setup(t, [paid(1000)]);
-  await resolveRead(0);
-  await save({ deductible: '20', remitted: '50', opening_balance: '10' });
-  assert.equal(api.getVatDue(), 14000);
-  assert.equal(state.changes, 3);
-  assert.deepEqual(state.saves[0], { user_id: 'test-user', year, deductible: 20, remitted: 50, opening_balance: 10 });
-  state.saveError = new Error('Save failed');
-  await save({ deductible: '20', remitted: '150', opening_balance: '10' });
-  assert.equal(api.getVatDue(), 14000);
-  assert.equal(state.changes, 3);
+test('Validation errors never write payment data to Supabase', async t => {
+  const { state, resolveReads, save, feedback } = setup(t);
+  await resolveReads();
+  await save({ remitted: '200' });
+  assert.equal(state.saves.length, 0);
+  assert.match(feedback.textContent, /date de débit/);
 });
