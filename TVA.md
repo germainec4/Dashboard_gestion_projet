@@ -12,11 +12,24 @@
 - Les données mensuelles sont enregistrées dans `vat_months`, isolées par utilisateur. Les anciennes données de `vat_years` restent consultables en archives. Un ajustement annuel non nul demande une répartition manuelle par mois puis une confirmation de reprise ; il n’est jamais réparti ni compté deux fois automatiquement. La déclaration Urssaf et ses paramètres restent trimestriels.
 - L’outil ne déclare ni ne verse la TVA et ne détermine pas la date d’assujettissement. Cocher la TVA uniquement lorsqu’elle est applicable.
 
+## Justificatifs et TVA déductible
+
+- Bloc « TVA déductible et justificatifs » fermé par défaut, sous le récapitulatif mensuel. Il propose les dépenses à documenter, les factures à vérifier, les validations et les éléments écartés. Un compteur discret signale les éléments à traiter.
+- « Actualiser depuis Qonto » lit les dépenses complétées du mois et les factures fournisseurs, dont les commissions Malt réglées par compensation. La synchronisation est paginée et idempotente. Elle ne lance aucun paiement et ne modifie aucune donnée Qonto.
+- Les PDF restent dans Qonto. Les liens de lecture sont demandés au moment de l’ouverture, après authentification et vérification du propriétaire ; ils ne sont pas stockés. L’accès au compte Qonto est explicitement rattaché au propriétaire du dashboard, et non à tout utilisateur inscrit.
+- Les informations de TVA proviennent de Qonto ; aucun taux de 20 % n’est inventé. Une facture présente sans montant extrait peut être complétée à la main. Une pièce absente, un avoir, une devise étrangère ou un cas particulier ne sont pas validés automatiquement.
+- La validation demande le montant retenu, la date du droit à déduction, le mois retenu et la confirmation de la vérification de la facture et de l’usage professionnel. Un rapprochement avec une dépense de même montant peut être confirmé dans le suivi. Les numéros de factures et les justificatifs partagés évitent un double comptage entre facture fournisseur et transaction bancaire.
+- « Utiliser le total validé » remplace le total du mois, sans addition répétée. Un montant manuel existant nécessite une confirmation explicite de remplacement. Un mois déjà déclaré n’est jamais modifié par cette action. Les justificatifs déjà utilisés sur un autre mois sont refusés.
+- Une modification d’un justificatif utilisé invalide sa validation. Pour un mois ouvert déjà alimenté, la réserve de trésorerie devient indisponible jusqu’à la vérification et la réapplication du total. Les montants des déclarations déjà effectuées sont conservés.
+- `vat_expenses` contient les références Qonto et les décisions, isolées par RLS. `qonto_vat_connections` est un registre réservé au serveur, sans accès client. La fonction `vat-expenses` authentifie explicitement chaque appel avant toute lecture bancaire.
+
 ## Vérification
 
 `node --test tests/*.test.js`
 
-29 tests : arrondis, HT/TTC, historique sans TVA, périodes mensuelles, passage décembre/janvier, paiements décalés, crédit sur plusieurs mois, déclaration sans paiement, montant déclaré conservé, dates invalides/futures, reprise annuelle, erreurs de chargement/sauvegarde, réserve pour les salaires et non-régression Urssaf.
+41 tests Node : calculs HT/TTC, périodes mensuelles, encaissements, crédits, réserve de trésorerie, erreurs de chargement/sauvegarde, import des commissions, montants absents, multi-taux, doublons facture/transaction, paiement de plusieurs factures, sources modifiées et non-régression Urssaf.
+
+`tests/vat-deductions.sql` vérifie les validations et l’application en base dans une transaction annulée : justificatif et confirmation requis, montant valide, application idempotente, remplacement manuel explicite, protection des mois déclarés, justificatifs déjà utilisés, invalidation après modification et isolation entre utilisateurs. Aucun élément de test n’est conservé.
 
 Migration additive `20261108081159_monthly_vat_tracking.sql` appliquée. Lecture, insertion/upsert et mise à jour authentifiées vérifiées dans des transactions annulées ; un autre utilisateur ne voit aucune ligne. Contrôle de sécurité : aucune nouvelle alerte. Vérification visuelle du sélecteur mensuel et du passage déclaration → paiement avec un aperçu local en mémoire.
 

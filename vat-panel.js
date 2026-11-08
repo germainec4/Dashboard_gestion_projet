@@ -1,11 +1,12 @@
 import { cents, day } from './fiscal-model.js';
 import { defaultVatPeriod, summarizeMonthlyVat, validateVatRecord } from './vat-monthly.js';
+import { initVatDeductions } from './vat-deductions.js';
 
 const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value / 100);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const periodLabel = period => day(period).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 const dateLabel = date => day(date)?.toLocaleDateString('fr-FR') || '';
-const columns = 'period,deductible,opening_credit,declared,declared_balance,declared_on,remitted,payment_date,expected_payment_date,note';
+const columns = 'period,deductible,opening_credit,declared,declared_balance,declared_on,remitted,payment_date,expected_payment_date,note,deduction_source,deduction_snapshot,deduction_applied_at,deduction_needs_review';
 
 export function initVatPanel(getMissions, userId, supabase, onChange = () => {}, onSelect = () => {}) {
   const panel = document.getElementById('fiscalVatPanel');
@@ -13,9 +14,11 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
   let records = [], legacy = [];
   let loading = false, loaded = false, error = false, saving = false;
   let request;
+  const deductions = initVatDeductions({ supabase, userId,
+    onBusy: value => { setBusy(value); onChange(); }, onRefresh: () => refresh(selectedPeriod, true) });
   const summary = () => summarizeMonthlyVat(getMissions(), records, legacy, new Date(), selectedPeriod);
   function getVatDue() {
-    if (!loaded || loading || error || saving) return null;
+    if (!loaded || loading || error || saving || records.some(row => !row.declared && row.deduction_needs_review)) return null;
     try { return summary().reserve; } catch { return null; }
   }
   function setBusy(busy) {
@@ -63,6 +66,8 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
         <div class="fiscal-stat"><p class="fiscal-muted">TVA nette à reverser${month.estimated ? ' · estimée' : ' · déclarée'}</p><strong>${money(month.payable)}</strong></div>
       </div>
       <p class="fiscal-muted">Déjà payé pour cette déclaration : <strong>${money(month.remitted)}</strong>. ${month.credit ? `Crédit reporté au mois suivant : ${money(month.credit)}.` : ''}</p>
+      <div data-vat-deductions-host></div>
+      ${month.deduction_needs_review && !month.declared ? '<p class="fiscal-notice">Des justificatifs utilisés ont changé. Vérifie le bloc TVA déductible puis utilise à nouveau le total validé. La réserve de trésorerie attend cette vérification.</p>' : ''}
       ${month.declared && month.estimated ? '<p class="fiscal-notice">Déclaration confirmée. Renseigne le solde réellement déclaré pour figer le montant ; le montant affiché reste une estimation issue des missions et déductions.</p>' : ''}
       ${!month.estimated && month.net !== month.computedNet ? `<p class="fiscal-notice">Solde déclaré : ${money(month.net)} · calcul actuel : ${money(month.computedNet)}. Vérifie cet écart avant toute régularisation.</p>` : ''}
       ${month.overpaid ? `<p class="fiscal-notice">Versement supérieur au montant à payer de ${money(month.overpaid)}. Cet écart n’est pas transformé automatiquement en crédit de TVA.</p>` : ''}
@@ -97,6 +102,7 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
       ${data.issues.length ? `<details class="fiscal-details"><summary>${data.issues.length} mission(s) exclue(s) · à vérifier</summary><ul>${data.issues.map(i => `<li>${escape(i.mission.title)} — ${escape(i.reason)}</li>`).join('')}</ul></details>` : ''}
       ${legacy.length ? `<details class="fiscal-details"><summary>Anciens ajustements annuels${data.unreconciled.length ? ' · reprise nécessaire' : ' · archives'}</summary><p class="fiscal-muted">Ces montants sont conservés sans répartition automatique. Reporte les déductions et paiements dans leurs mois, puis confirme la reprise. Un crédit initial se saisit une seule fois ; une dette antérieure reste rattachée à son mois.</p>${legacy.map(row => `<div class="vat-legacy"><p>${row.year} · Déductible : ${money(cents(row.deductible))} · Reversé : ${money(cents(row.remitted))} · Solde initial : ${money(cents(row.opening_balance))}</p>${data.unreconciled.includes(row) ? `<button class="button button-secondary" type="button" data-vat-reconcile="${row.year}">Confirmer la répartition mensuelle de ${row.year}</button>` : ''}</div>`).join('')}</details>` : ''}
       ${data.unreconciled.length ? '<p class="fiscal-notice" role="alert">Réserve de trésorerie indisponible tant que les anciens ajustements annuels ne sont pas rapprochés.</p>' : ''}`;
+    deductions.mount(panel.querySelector('[data-vat-deductions-host]'), month);
   }
   async function readRows(table, fields, order) {
     const rows = [];
@@ -131,6 +137,7 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
     return request;
   }
   panel.addEventListener('click', async event => {
+    if (event.target.closest('[data-vat-deductions]')) return;
     if (event.target.closest('[data-vat-retry]')) { await refresh(selectedPeriod, true); return; }
     const period = event.target.closest('[data-vat-period]')?.dataset.vatPeriod;
     if (period && !saving) { selectedPeriod = period; onSelect(period); render(); return; }
@@ -150,6 +157,7 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
     } finally { onChange(); }
   });
   panel.addEventListener('submit', async event => {
+    if (event.target.closest('[data-vat-deductions]')) return;
     event.preventDefault();
     if (saving) return;
     const form = event.target;
@@ -165,6 +173,12 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
       const parsed = validateVatRecord(record);
       Object.assign(record, { deductible: parsed.deductible / 100, opening_credit: parsed.openingCredit / 100,
         remitted: parsed.remitted / 100, declared_balance: parsed.declaredBalance === null ? null : parsed.declaredBalance / 100 });
+      const previous = records.find(row => row.period === record.period);
+      const sameDeduction = cents(previous?.deductible ?? 0) === parsed.deductible;
+      Object.assign(record, { deduction_source: sameDeduction ? previous?.deduction_source || 'manual' : 'manual',
+        deduction_snapshot: sameDeduction ? previous?.deduction_snapshot || [] : [],
+        deduction_applied_at: sameDeduction ? previous?.deduction_applied_at || null : null,
+        deduction_needs_review: sameDeduction ? previous?.deduction_needs_review || false : false });
     } catch (validationError) { feedback.textContent = validationError.message; return; }
     setBusy(true);
     onChange();

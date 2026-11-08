@@ -38,7 +38,7 @@ function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
       remitted: '0', payment_date: '', expected_payment_date: '', note: '' };
     const elements = Object.fromEntries(Object.entries({ ...defaults, ...values }).map(([name, value]) => [name, { value }]));
     elements.declared = { checked: values.declared ?? true };
-    await listeners.submit({ preventDefault() {}, target: { reportValidity: () => true, elements, querySelector: () => feedback } });
+    await listeners.submit({ preventDefault() {}, target: { closest: () => null, reportValidity: () => true, elements, querySelector: () => feedback } });
   };
   return { api, state, resolveReads, save, panel, feedback, controls };
 }
@@ -111,4 +111,14 @@ test('Validation errors never write payment data to Supabase', async t => {
   await save({ remitted: '200' });
   assert.equal(state.saves.length, 0);
   assert.match(feedback.textContent, /date de débit/);
+});
+
+test('An open month with changed applied receipts blocks the reserve; a declared snapshot stays fixed', async t => {
+  const { api, resolveReads } = setup(t);
+  await resolveReads([{ period, deductible: 50, deduction_source: 'receipts', deduction_needs_review: true }]);
+  assert.equal(api.getVatDue(), null);
+  const refresh = api.refresh(period, true);
+  await resolveReads([{ period, deductible: 50, declared: true, deduction_needs_review: true }], [], null, 2);
+  await refresh;
+  assert.equal(api.getVatDue(), 25000);
 });
