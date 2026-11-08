@@ -6,7 +6,7 @@ export function vatPeriod(date) {
 }
 
 export function defaultVatPeriod(now = new Date()) {
-  return vatPeriod(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  return vatPeriod(now);
 }
 
 function amount(value, label, signed = false) {

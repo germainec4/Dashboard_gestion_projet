@@ -7,9 +7,9 @@ const paid = (price, date, other = {}) => ({ title: 'Mission', price, vat_rate: 
 const row = (period, other = {}) => ({ period, ...other });
 const month = (data, period) => data.months.find(item => item.period === period);
 
-test('Default VAT period is last month, including December in January', () => {
-  assert.equal(defaultVatPeriod(now), '2026-10-01');
-  assert.equal(defaultVatPeriod(new Date(2027, 0, 1)), '2026-12-01');
+test('Default VAT period is the current month, including January in the new year', () => {
+  assert.equal(defaultVatPeriod(now), '2026-11-01');
+  assert.equal(defaultVatPeriod(new Date(2027, 0, 1)), '2027-01-01');
 });
 
 test('Receipts belong to their payment month, with cent rounding and no unpaid or VAT-free missions', () => {

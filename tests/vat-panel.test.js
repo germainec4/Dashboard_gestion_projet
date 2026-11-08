@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initVatPanel } from '../vat-panel.js';
-import { defaultVatPeriod, vatPeriod } from '../vat-monthly.js';
+import { vatPeriod } from '../vat-monthly.js';
 
 const now = new Date();
-const period = defaultVatPeriod(now);
+const period = vatPeriod(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 const currentPeriod = vatPeriod(now);
 const today = `${currentPeriod.slice(0, 8)}${String(now.getDate()).padStart(2, '0')}`;
 const paid = (price, date = period) => ({ title: '<Mission>', price, vat_rate: 20, status: 'payee', date_payment: date });
@@ -34,6 +34,7 @@ function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
     await new Promise(resolve => setImmediate(resolve));
   };
   const save = async (values = {}) => {
+    await api.refresh(period);
     const defaults = { deductible: '0', reverse_charge_base: '0', reverse_charge_due: '0', reverse_charge_deductible: '0', opening_credit: '0', declared_balance: '', declared_on: '',
       remitted: '0', payment_date: '', expected_payment_date: '', note: '' };
     const elements = Object.fromEntries(Object.entries({ ...defaults, ...values }).map(([name, value]) => [name, { value }]));

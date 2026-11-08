@@ -23,6 +23,7 @@ export function initFiscalPanel(getMissions, userId, supabase, onVatChange) {
   const dialog = el('fiscalDialog');
   const initial = defaultPeriod();
   let year = initial.year;
+  let quarterYear = year;
   let quarter = initial.quarter;
   let activeTab = 'quarter';
   let vatMonth = Number(defaultVatPeriod().slice(5, 7));
@@ -60,6 +61,12 @@ export function initFiscalPanel(getMissions, userId, supabase, onVatChange) {
       el('fiscalFeedback').textContent = 'Paramètres enregistrés.';
     } catch { el('fiscalFeedback').textContent = 'Enregistrement indisponible : paramètres conservés pour cette session.'; }
     refresh();
+  }
+  function selectCurrentVatPeriod() {
+    const period = defaultVatPeriod();
+    year = Number(period.slice(0, 4));
+    vatMonth = Number(period.slice(5, 7));
+    loadSettings();
   }
   function issuesMarkup(issues) {
     if (!issues.length) return '';
@@ -108,6 +115,15 @@ export function initFiscalPanel(getMissions, userId, supabase, onVatChange) {
     el('openFiscalBtn').setAttribute('aria-label', `Déclarations et TVA${hint ? ' : ' + hint : ''}`);
   }
   function switchTab(tab) {
+    if (activeTab !== tab) {
+      if (tab === 'vat') {
+        quarterYear = year;
+        selectCurrentVatPeriod();
+      } else {
+        year = quarterYear;
+        loadSettings();
+      }
+    }
     activeTab = tab;
     Object.entries(tabs).forEach(([name, prefix]) => {
       el(prefix + 'Tab').setAttribute('aria-selected', String(name === tab));
@@ -118,9 +134,15 @@ export function initFiscalPanel(getMissions, userId, supabase, onVatChange) {
     el('fiscalMonthLabel').hidden = tab !== 'vat';
     el('fiscalSettings').hidden = tab === 'vat';
     el('fiscalFeedback').textContent = '';
+    refresh();
     if (tab === 'vat') vatPanel.refresh(selectedVatPeriod(), true);
   }
-  el('openFiscalBtn').addEventListener('click', () => { refresh(); if (activeTab === 'vat') vatPanel.refresh(selectedVatPeriod(), true); dialog.showModal(); });
+  el('openFiscalBtn').addEventListener('click', () => {
+    if (activeTab === 'vat') selectCurrentVatPeriod();
+    refresh();
+    if (activeTab === 'vat') vatPanel.refresh(selectedVatPeriod(), true);
+    dialog.showModal();
+  });
   el('closeFiscalBtn').addEventListener('click', () => dialog.close());
   el('fiscalYear').addEventListener('change', event => { year = Number(event.target.value); loadSettings(); refresh(); });
   el('fiscalQuarter').addEventListener('change', event => { quarter = Number(event.target.value); refresh(); });
