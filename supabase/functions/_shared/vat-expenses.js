@@ -27,7 +27,8 @@ export function parisDay(value) {
 export const expensePeriod = value => expenseDay(value) ? `${value.slice(0, 7)}-01` : null;
 const words = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const personWords = value => words(value).split(' ').filter(word => word && !['ei', 'sa', 'sas', 'sasu', 'sarl', 'eurl'].includes(word)).sort().join(' ');
-const ids = values => [...new Set(values.filter(value => typeof value === 'string' && value.length > 0))].sort();
+// Keep the readable display attachment first (e-invoices may also have an XML original).
+const ids = values => [...new Set(values.filter(value => typeof value === 'string' && value.length > 0))];
 
 export function expenseFingerprint(row) {
   return JSON.stringify([row.kind, row.source_id, row.supplier, row.reference, row.source_date, row.payment_date,
@@ -106,9 +107,11 @@ export function deduplicateExpenses(rows) {
 
 export function expenseReviewState(row) {
   if (row.auto_duplicate_of || row.duplicate_of) return 'duplicate';
-  if (row.source_missing) return 'changed';
   if (row.decision === 'excluded') return 'excluded';
-  if (row.decision === 'approved') return row.review_fingerprint === row.source_fingerprint ? 'approved' : 'changed';
+  if (row.source_missing) return 'changed';
+  if (row.decision === 'approved') return row.review_fingerprint === row.source_fingerprint && row.attachment_ids?.length
+    && !row.blocked_reason && !row.credit_note && row.currency === 'EUR' && row.approved_cents > 0
+    && row.approved_cents <= row.amount_cents ? 'approved' : 'changed';
   if (row.blocked_reason || row.credit_note) return 'manual';
   if (!row.attachment_ids?.length) return 'missing';
   if (row.vat_cents === 0) return 'zero';

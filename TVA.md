@@ -16,7 +16,7 @@
 
 - Bloc « TVA déductible et justificatifs » fermé par défaut, sous le récapitulatif mensuel. Il propose les dépenses à documenter, les factures à vérifier, les validations et les éléments écartés. Un compteur discret signale les éléments à traiter.
 - « Actualiser depuis Qonto » lit les dépenses complétées du mois et les factures fournisseurs, dont les commissions Malt réglées par compensation. La synchronisation est paginée et idempotente. Elle ne lance aucun paiement et ne modifie aucune donnée Qonto.
-- Les PDF restent dans Qonto. Les liens de lecture sont demandés au moment de l’ouverture, après authentification et vérification du propriétaire ; ils ne sont pas stockés. L’accès au compte Qonto est explicitement rattaché au propriétaire du dashboard, et non à tout utilisateur inscrit.
+- Les PDF restent dans Qonto. L’aperçu lit le fichier au moment de l’ouverture, après authentification et vérification du propriétaire, puis l’affiche en mémoire dans le navigateur ; aucun fichier ni lien temporaire n’est stocké. La version PDF lisible est privilégiée sur l’original XML des factures électroniques. L’accès au compte Qonto est explicitement rattaché au propriétaire du dashboard, et non à tout utilisateur inscrit.
 - Les informations de TVA proviennent de Qonto ; aucun taux de 20 % n’est inventé. Une facture présente sans montant extrait peut être complétée à la main. Une pièce absente, un avoir, une devise étrangère ou un cas particulier ne sont pas validés automatiquement.
 - La validation demande le montant retenu, la date du droit à déduction, le mois retenu et la confirmation de la vérification de la facture et de l’usage professionnel. Un rapprochement avec une dépense de même montant peut être confirmé dans le suivi. Les numéros de factures et les justificatifs partagés évitent un double comptage entre facture fournisseur et transaction bancaire.
 - « Utiliser le total validé » remplace le total du mois, sans addition répétée. Un montant manuel existant nécessite une confirmation explicite de remplacement. Un mois déjà déclaré n’est jamais modifié par cette action. Les justificatifs déjà utilisés sur un autre mois sont refusés.
@@ -27,7 +27,7 @@
 
 `node --test tests/*.test.js`
 
-41 tests Node : calculs HT/TTC, périodes mensuelles, encaissements, crédits, réserve de trésorerie, erreurs de chargement/sauvegarde, import des commissions, montants absents, multi-taux, doublons facture/transaction, paiement de plusieurs factures, sources modifiées et non-régression Urssaf.
+43 tests Node : calculs HT/TTC, périodes mensuelles, encaissements, crédits, réserve de trésorerie, erreurs de chargement/sauvegarde, import des commissions, montants absents, multi-taux, doublons facture/transaction, paiement de plusieurs factures, sources modifiées, priorité au PDF lisible des factures électroniques et non-régression Urssaf.
 
 `tests/vat-deductions.sql` vérifie les validations et l’application en base dans une transaction annulée : justificatif et confirmation requis, montant valide, application idempotente, remplacement manuel explicite, protection des mois déclarés, justificatifs déjà utilisés, invalidation après modification et isolation entre utilisateurs. Aucun élément de test n’est conservé.
 

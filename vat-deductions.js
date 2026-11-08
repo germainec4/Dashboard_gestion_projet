@@ -106,13 +106,14 @@ export function initVatDeductions({ supabase, userId, onBusy = () => {}, onRefre
   }
 
   async function invoke(body) {
-    const { data, error } = await supabase.functions.invoke('vat-expenses', { body });
+    const { data, error, response } = await supabase.functions.invoke('vat-expenses', { body });
     if (error) {
       let detail;
       try { detail = await error.context?.json(); } catch { /* fallback below */ }
       throw new Error(detail?.error || 'Lecture Qonto indisponible. Réessaie.');
     }
     if (data?.error) throw new Error(data.error);
+    if (data instanceof Blob) return new Blob([data], { type: response?.headers.get('X-Document-Type') || data.type });
     return data;
   }
 
@@ -155,9 +156,10 @@ export function initVatDeductions({ supabase, userId, onBusy = () => {}, onRefre
         const popup = window.open('about:blank', '_blank');
         if (popup) popup.opener = null;
         try {
-          const data = await invoke({ action: 'document', id: target.dataset.expenseDocument });
-          if (new URL(data.url).protocol !== 'https:') throw new Error('Lien de justificatif invalide.');
-          if (popup) popup.location.href = data.url;
+          const data = await invoke({ action: 'document', id: target.dataset.expenseDocument, preview: true });
+          if (!(data instanceof Blob) || !data.size) throw new Error('Aperçu du justificatif indisponible.');
+          const objectUrl = URL.createObjectURL(data);
+          if (popup) { popup.location.href = objectUrl; setTimeout(() => URL.revokeObjectURL(objectUrl), 300000); }
           else throw new Error('Autorise les fenêtres de justificatif pour ce site, puis réessaie.');
         } catch (failure) { popup?.close(); feedback = failure.message; render(); }
       }

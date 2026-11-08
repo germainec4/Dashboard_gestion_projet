@@ -61,6 +61,22 @@ Deno.serve(async (request: Request) => {
       const { attachment } = await qonto(`/attachments/${encodeURIComponent(id)}`);
       const documentUrl = attachment?.url || attachment?.file_url;
       if (!documentUrl || new URL(documentUrl).protocol !== 'https:') throw new Error('Le justificatif est momentanément indisponible.');
+      if (body.preview === true) {
+        const hostname = new URL(documentUrl).hostname;
+        if (!hostname.endsWith('.amazonaws.com') && !hostname.endsWith('.qonto.com') && !hostname.endsWith('.cloudfront.net')) {
+          throw new Error('Hébergement du justificatif non pris en charge. Ouvre-le dans Qonto.');
+        }
+        const documentResponse = await fetch(documentUrl, { signal: AbortSignal.timeout(20000), redirect: 'error' });
+        if (!documentResponse.ok) throw new Error('Lecture du justificatif indisponible. Réessaie.');
+        const type = (attachment.file_content_type || documentResponse.headers.get('Content-Type') || '').split(';')[0];
+        if (!['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(type)) throw new Error('Ouvre ce format de document directement dans Qonto.');
+        if (Number(documentResponse.headers.get('Content-Length') || 0) > 15 * 1024 * 1024) throw new Error('Document trop volumineux pour l’aperçu. Ouvre-le dans Qonto.');
+        const bytes = await documentResponse.arrayBuffer();
+        if (bytes.byteLength > 15 * 1024 * 1024) throw new Error('Document trop volumineux pour l’aperçu. Ouvre-le dans Qonto.');
+        return new Response(bytes, { headers: { ...headers,
+          'Content-Type': 'application/octet-stream', 'X-Document-Type': type,
+          'Access-Control-Expose-Headers': 'X-Document-Type', 'X-Content-Type-Options': 'nosniff' } });
+      }
       return json({ url: documentUrl });
     }
     if (body.action !== 'sync') return json({ error: 'Action invalide.' }, 400);

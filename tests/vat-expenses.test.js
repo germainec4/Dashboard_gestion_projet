@@ -28,6 +28,11 @@ test('Malt fees exist as supplier invoices even without an outgoing bank transac
   assert.equal(summarizeExpenseReviews([row], '2026-10-01').amount, 0);
 });
 
+test('A readable PDF is opened before the XML original of an electronic invoice', () => {
+  const row = normalizeInvoice(invoice('a', { attachment_id: 'a-original-xml', display_attachment_id: 'z-readable-pdf' }), '2026-11-01');
+  assert.equal(row.attachment_ids[0], 'z-readable-pdf');
+});
+
 test('Invoice payment date proposes the payment month; its issue date is preserved for review', () => {
   const row = normalizeInvoice(invoice('a', { payment_date: '2026-11-02' }), '2026-11-01');
   assert.equal(row.source_date, '2026-10-29');
@@ -96,4 +101,11 @@ test('Credits, foreign currencies, taxes and own transfers are never offered as 
   assert.ok(normalizeTransaction(transaction('d', { label: 'URSSAF' })).blocked_reason);
   assert.equal(normalizeTransaction(transaction('e', { status: 'pending' })), null);
   assert.equal(normalizeTransaction(transaction('f', { side: 'credit' })), null);
+});
+
+test('Excluded items stay excluded after disappearing, and malformed approvals never inflate the total', () => {
+  const [row] = deduplicateExpenses([normalizeInvoice(invoice('a'), '2026-11-01')]);
+  assert.equal(expenseReviewState({ ...row, decision: 'excluded', source_missing: true }), 'excluded');
+  const invalid = { ...row, decision: 'approved', deduction_period: '2026-11-01', approved_cents: 99999, review_fingerprint: row.source_fingerprint };
+  assert.equal(summarizeExpenseReviews([invalid], '2026-11-01').amount, 0);
 });
