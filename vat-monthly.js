@@ -22,6 +22,13 @@ export function validateVatRecord(record, now = new Date()) {
     throw new Error('Mois TVA invalide.');
   }
   const deductible = amount(record.deductible, 'TVA déductible');
+  const reverseChargeBase = amount(record.reverse_charge_base, 'Base HT autoliquidée');
+  const reverseChargeDue = amount(record.reverse_charge_due, 'TVA due par autoliquidation');
+  const reverseChargeDeductible = amount(record.reverse_charge_deductible, 'TVA autoliquidée déductible');
+  if (reverseChargeDeductible > reverseChargeDue || reverseChargeDeductible > deductible
+    || reverseChargeDue > reverseChargeBase || (reverseChargeDue > 0) !== (reverseChargeBase > 0)) {
+    throw new Error('Vérifie la base, la TVA due et la déduction d’autoliquidation. La TVA déductible totale inclut cette déduction.');
+  }
   const remitted = amount(record.remitted, 'Versement');
   const openingCredit = amount(record.opening_credit, 'Crédit initial');
   const declaredBalance = record.declared_balance == null || record.declared_balance === ''
@@ -41,7 +48,7 @@ export function validateVatRecord(record, now = new Date()) {
   }
   if ((remitted > 0) !== Boolean(record.payment_date)) throw new Error('Renseigne ensemble le montant réellement payé et sa date de débit.');
   if (record.declared_on && record.payment_date && record.payment_date < record.declared_on) throw new Error('Le paiement ne peut pas précéder la déclaration.');
-  return { deductible, remitted, openingCredit, declaredBalance, declared };
+  return { deductible, reverseChargeBase, reverseChargeDue, reverseChargeDeductible, remitted, openingCredit, declaredBalance, declared };
 }
 
 export function vatStatus(month) {
@@ -97,13 +104,20 @@ export function summarizeMonthlyVat(missions, records = [], legacy = [], now = n
     const values = validateVatRecord(record, now);
     const payments = (buckets.get(period) || []).sort((a, b) => b.payment - a.payment);
     const collected = payments.reduce((total, payment) => total + payment.vat, 0);
-    const computedNet = collected - values.deductible - values.openingCredit - credit;
+    const computedNet = collected + values.reverseChargeDue - values.deductible - values.openingCredit - credit;
     const net = values.declaredBalance ?? computedNet;
     const payable = Math.max(0, net);
     const month = { ...record, ...values, period, collected, payments, carriedCredit: credit,
       computedNet, net, payable, credit: Math.max(0, -net), remaining: Math.max(0, payable - values.remitted),
       overpaid: Math.max(0, values.remitted - payable), provisional: period === currentPeriod,
       estimated: values.declaredBalance === null };
+    month.reverseChargeRegions = (record.deduction_snapshot || []).reduce((totals, item) => {
+      if (item.vat_treatment === 'reverse_charge' && ['eu', 'non_eu'].includes(item.reverse_charge_region)
+        && Number.isSafeInteger(Number(item.reverse_charge_base_cents))) {
+        totals[item.reverse_charge_region] += Number(item.reverse_charge_base_cents);
+      }
+      return totals;
+    }, { eu: 0, non_eu: 0 });
     month.status = vatStatus(month);
     months.push(month);
     credit = month.credit;

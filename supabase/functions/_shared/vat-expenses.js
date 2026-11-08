@@ -110,8 +110,9 @@ export function expenseReviewState(row) {
   if (row.decision === 'excluded') return 'excluded';
   if (row.source_missing) return 'changed';
   if (row.decision === 'approved') return row.review_fingerprint === row.source_fingerprint && row.attachment_ids?.length
-    && !row.blocked_reason && !row.credit_note && row.currency === 'EUR' && row.approved_cents > 0
-    && row.approved_cents <= row.amount_cents ? 'approved' : 'changed';
+    && !row.credit_note && (row.vat_treatment === 'reverse_charge' ? validReverseChargeReview(row)
+      : !row.blocked_reason && row.currency === 'EUR' && row.approved_cents > 0 && row.approved_cents <= row.amount_cents)
+    ? 'approved' : 'changed';
   if (row.blocked_reason || row.credit_note) return 'manual';
   if (!row.attachment_ids?.length) return 'missing';
   if (row.vat_cents === 0) return 'zero';
@@ -120,13 +121,48 @@ export function expenseReviewState(row) {
 
 export function summarizeExpenseReviews(rows, period) {
   const relevant = rows.filter(row => row.deduction_period ? row.deduction_period === period : row.proposed_period === period);
-  const totals = { approved: 0, pending: 0, missing: 0, duplicates: 0, amount: 0, rows: relevant };
+  const totals = { approved: 0, pending: 0, missing: 0, duplicates: 0, amount: 0,
+    reverseChargeBase: 0, reverseChargeDue: 0, reverseChargeDeductible: 0, reverseChargeEuBase: 0, reverseChargeNonEuBase: 0, rows: relevant };
   for (const row of relevant) {
     const state = expenseReviewState(row);
-    if (state === 'approved') { totals.approved++; totals.amount += Number(row.approved_cents || 0); }
+    if (state === 'approved') {
+      totals.approved++; totals.amount += Number(row.approved_cents || 0);
+      if (row.vat_treatment === 'reverse_charge') {
+        totals.reverseChargeBase += Number(row.reverse_charge_base_cents);
+        totals.reverseChargeDue += Number(row.reverse_charge_due_cents);
+        totals.reverseChargeDeductible += Number(row.approved_cents);
+        totals[row.reverse_charge_region === 'eu' ? 'reverseChargeEuBase' : 'reverseChargeNonEuBase'] += Number(row.reverse_charge_base_cents);
+      }
+    }
     else if (state === 'missing') totals.missing++;
     else if (state === 'duplicate') totals.duplicates++;
-    else if (['pending', 'changed', 'manual'].includes(state) && !(row.blocked_reason || '').includes('Prélèvement fiscal')) totals.pending++;
+    else if (['pending', 'changed', 'manual', 'zero'].includes(state) && !(row.blocked_reason || '').includes('Prélèvement fiscal')) totals.pending++;
   }
   return totals;
+}
+
+export function calculateReverseCharge(baseCents, rate = 20, deductiblePercent = 100) {
+  const rateNumber = Number(rate), share = Number(deductiblePercent);
+  if (!Number.isSafeInteger(baseCents) || baseCents <= 0 || baseCents > 999999999999
+    || ![2.1, 5.5, 10, 20].includes(rateNumber) || !Number.isFinite(share) || share < 0 || share > 100
+    || Math.abs(share * 100 - Math.round(share * 100)) > 0.000001) return null;
+  // Integer arithmetic mirrors PostgreSQL numeric rounding, including half cents.
+  const due = Math.floor((baseCents * Math.round(rateNumber * 100) + 5000) / 10000);
+  const deductible = Math.floor((due * Math.round(share * 100) + 5000) / 10000);
+  return { base: baseCents, due, deductible, net: due - deductible };
+}
+
+export function supportsReverseCharge(row) {
+  return row.kind === 'invoice' && !row.credit_note && !row.source_missing && !row.auto_duplicate_of && !row.duplicate_of
+    && (!row.blocked_reason || row.blocked_reason === 'Devise étrangère · traitement manuel')
+    && !(row.vat_cents > 0);
+}
+
+function validReverseChargeReview(row) {
+  const result = calculateReverseCharge(Number(row.reverse_charge_base_cents), row.reverse_charge_rate, row.deductible_percent);
+  return supportsReverseCharge(row) && result && ['eu', 'non_eu'].includes(row.reverse_charge_region)
+    && result.due > 0 && result.due === Number(row.reverse_charge_due_cents) && result.deductible === Number(row.approved_cents)
+    && (row.currency !== 'EUR' || result.base <= row.amount_cents)
+    && (row.currency === 'EUR' || Boolean(row.conversion_note?.trim()))
+    && expensePeriod(row.eligible_on) === row.deduction_period;
 }

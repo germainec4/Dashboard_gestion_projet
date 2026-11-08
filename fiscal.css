@@ -71,6 +71,10 @@ body:has(#fiscalDialog[open]) { overflow:hidden; }
 .vat-expense-status { font-size:.68rem; color:var(--muted); max-width:130px; }
 .vat-expense-status.is-approved { color:#70d9a0; }
 .vat-expense-body { margin-top:18px; padding:14px; background:var(--surface-2); border-radius:6px; }
+.vat-reverse-fields { margin:0; padding:14px; border:1px solid var(--border); border-radius:6px; display:grid; gap:14px; min-width:0; }
+.vat-reverse-fields legend { padding:0 6px; color:var(--muted); font-size:.75rem; }
+.vat-reverse-summary { display:grid; gap:4px; padding:12px 14px; border-left:2px solid var(--border); }
+.vat-expense-review .fiscal-check input { height:16px; min-height:16px; }
 .vat-text-action { border:0; background:none; padding:0; font:inherit; font-size:.75rem; color:var(--muted); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
 @media(max-width:600px) {
   #fiscalDialog .dialog-content { padding:20px 16px; gap:20px; }

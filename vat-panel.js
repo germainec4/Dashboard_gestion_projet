@@ -6,7 +6,7 @@ const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', curre
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const periodLabel = period => day(period).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 const dateLabel = date => day(date)?.toLocaleDateString('fr-FR') || '';
-const columns = 'period,deductible,opening_credit,declared,declared_balance,declared_on,remitted,payment_date,expected_payment_date,note,deduction_source,deduction_snapshot,deduction_applied_at,deduction_needs_review';
+const columns = 'period,deductible,reverse_charge_base,reverse_charge_due,reverse_charge_deductible,opening_credit,declared,declared_balance,declared_on,remitted,payment_date,expected_payment_date,note,deduction_source,deduction_snapshot,deduction_applied_at,deduction_needs_review';
 
 export function initVatPanel(getMissions, userId, supabase, onChange = () => {}, onSelect = () => {}) {
   const panel = document.getElementById('fiscalVatPanel');
@@ -65,6 +65,7 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
         <div class="fiscal-stat"><p class="fiscal-muted">Crédit antérieur disponible</p><strong>${money(month.carriedCredit + month.openingCredit)}</strong></div>
         <div class="fiscal-stat"><p class="fiscal-muted">TVA nette à reverser${month.estimated ? ' · estimée' : ' · déclarée'}</p><strong>${money(month.payable)}</strong></div>
       </div>
+      ${month.reverseChargeDue ? `<div class="vat-reverse-summary fiscal-muted"><strong>Autoliquidation incluse dans le calcul</strong><span>Base HT : ${money(month.reverseChargeBase)} · TVA due : ${money(month.reverseChargeDue)} · TVA déductible : ${money(month.reverseChargeDeductible)}</span>${month.reverseChargeRegions.eu || month.reverseChargeRegions.non_eu ? `<span>Bases HT des services : UE hors France ${money(month.reverseChargeRegions.eu)} · hors UE ${money(month.reverseChargeRegions.non_eu)}</span>` : ''}<span>TVA totale due : ${money(month.collected + month.reverseChargeDue)} · déductible totale : ${money(month.deductible)}</span></div>` : ''}
       <p class="fiscal-muted">Déjà payé pour cette déclaration : <strong>${money(month.remitted)}</strong>. ${month.credit ? `Crédit reporté au mois suivant : ${money(month.credit)}.` : ''}</p>
       <div data-vat-deductions-host></div>
       ${month.deduction_needs_review && !month.declared ? '<p class="fiscal-notice">Des justificatifs utilisés ont changé. Vérifie le bloc TVA déductible puis utilise à nouveau le total validé. La réserve de trésorerie attend cette vérification.</p>' : ''}
@@ -77,6 +78,11 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
             <label>TVA déductible du mois (€)<input name="deductible" type="number" min="0" step="0.01" value="${month.deductible / 100}" required></label>
             <label>Crédit initial complémentaire (€)<input name="opening_credit" type="number" min="0" step="0.01" value="${month.openingCredit / 100}" required><small class="fiscal-muted">Uniquement un crédit antérieur absent du suivi. Le report calculé ci-dessus est automatique.</small></label>
           </div>
+          <details class="fiscal-details"><summary>Autoliquidation · ajustement manuel</summary><div class="fiscal-settings-grid">
+            <label>Base HT autoliquidée (€)<input name="reverse_charge_base" type="number" min="0" step="0.01" value="${month.reverseChargeBase / 100}" required></label>
+            <label>TVA due par autoliquidation (€)<input name="reverse_charge_due" type="number" min="0" step="0.01" value="${month.reverseChargeDue / 100}" required></label>
+            <label>Dont TVA autoliquidée déductible (€)<input name="reverse_charge_deductible" type="number" min="0" step="0.01" value="${month.reverseChargeDeductible / 100}" required><small class="fiscal-muted">Déjà comprise dans la TVA déductible totale du mois.</small></label>
+          </div></details>
           <label class="fiscal-check"><input name="declared" type="checkbox" ${month.declared ? 'checked' : ''} ${month.provisional ? 'disabled' : ''}>Déclaration effectuée pour ${escape(periodLabel(month.period))}</label>
           <div class="fiscal-settings-grid">
             <label>Solde réellement déclaré (€)<input name="declared_balance" type="number" step="0.01" value="${month.declaredBalance === null ? '' : month.declaredBalance / 100}" placeholder="À compléter"><small class="fiscal-muted">Positif : à payer · négatif : crédit. Vide : estimation.</small></label>
@@ -166,15 +172,22 @@ export function initVatPanel(getMissions, userId, supabase, onChange = () => {},
     const value = name => form.elements[name].value;
     const record = { user_id: userId, period: selectedPeriod,
       deductible: value('deductible'), opening_credit: value('opening_credit'), declared: form.elements.declared.checked,
+      reverse_charge_base: value('reverse_charge_base'), reverse_charge_due: value('reverse_charge_due'),
+      reverse_charge_deductible: value('reverse_charge_deductible'),
       declared_balance: value('declared_balance') === '' ? null : value('declared_balance'), declared_on: value('declared_on') || null,
       remitted: value('remitted'), payment_date: value('payment_date') || null, expected_payment_date: value('expected_payment_date') || null,
       note: value('note').trim() };
     try {
       const parsed = validateVatRecord(record);
       Object.assign(record, { deductible: parsed.deductible / 100, opening_credit: parsed.openingCredit / 100,
+        reverse_charge_base: parsed.reverseChargeBase / 100, reverse_charge_due: parsed.reverseChargeDue / 100,
+        reverse_charge_deductible: parsed.reverseChargeDeductible / 100,
         remitted: parsed.remitted / 100, declared_balance: parsed.declaredBalance === null ? null : parsed.declaredBalance / 100 });
       const previous = records.find(row => row.period === record.period);
-      const sameDeduction = cents(previous?.deductible ?? 0) === parsed.deductible;
+      const sameDeduction = cents(previous?.deductible ?? 0) === parsed.deductible
+        && cents(previous?.reverse_charge_base ?? 0) === parsed.reverseChargeBase
+        && cents(previous?.reverse_charge_due ?? 0) === parsed.reverseChargeDue
+        && cents(previous?.reverse_charge_deductible ?? 0) === parsed.reverseChargeDeductible;
       Object.assign(record, { deduction_source: sameDeduction ? previous?.deduction_source || 'manual' : 'manual',
         deduction_snapshot: sameDeduction ? previous?.deduction_snapshot || [] : [],
         deduction_applied_at: sameDeduction ? previous?.deduction_applied_at || null : null,

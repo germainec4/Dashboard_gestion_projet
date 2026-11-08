@@ -34,7 +34,7 @@ function setup(t, missions = [paid(1000), paid(500, currentPeriod)]) {
     await new Promise(resolve => setImmediate(resolve));
   };
   const save = async (values = {}) => {
-    const defaults = { deductible: '0', opening_credit: '0', declared_balance: '', declared_on: '',
+    const defaults = { deductible: '0', reverse_charge_base: '0', reverse_charge_due: '0', reverse_charge_deductible: '0', opening_credit: '0', declared_balance: '', declared_on: '',
       remitted: '0', payment_date: '', expected_payment_date: '', note: '' };
     const elements = Object.fromEntries(Object.entries({ ...defaults, ...values }).map(([name, value]) => [name, { value }]));
     elements.declared = { checked: values.declared ?? true };
