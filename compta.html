@@ -323,6 +323,7 @@
         }
         .metric-card-front p { margin: 0; font-size: 0.9rem; color: #888; }
         .metric-card-front h3 { margin: 5px 0 0; font-size: 1.8rem; }
+        .metric-tax-label { color: #888; font-size: 0.75rem; font-weight: 400; }
 
         .metric-card-back {
           transform: rotateY(180deg);
@@ -703,7 +704,7 @@
             <div class="flip-card-inner">
               <div class="metric-card-front">
                 <p>Paiements en attente</p>
-                <h3 id="kpi-reste">0,00 €</h3>
+                <h3><span id="kpi-reste">0,00 €</span>&nbsp;<small class="metric-tax-label">HT</small></h3>
                 <span class="flip-hint">Détails ↺</span>
               </div>
               <div class="metric-card-back">
