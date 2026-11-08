@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { initFiscalPanel } from './fiscal.js';
 import { initMissionVat } from './mission-vat.js';
-import { missionAmounts } from './vat-model.js';
+import { missionAmounts, summarizeVat } from './vat-model.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -153,6 +153,15 @@ function renderKPIs() {
   const impots = Math.max(0, (caApresAbattement - IMPOT_SEUIL) * IMPOT_TAUX);
   animateCounter('kpi-impots', impots);
   animateCounter('kpi-reste', resteARecevoir);
+
+  // Gross VAT actually received this month, independent of the quarter filter.
+  const now = new Date();
+  const monthlyVat = summarizeVat(missions, now.getFullYear(), {}, now);
+  document.getElementById('kpi-vat-month-label').textContent = `TVA estimée · ${now.toLocaleDateString('fr-FR', { month: 'long' })}`;
+  document.getElementById('kpi-vat-month-amount').textContent = monthlyVat.issues.length
+    ? 'À vérifier'
+    : formatCurrency(monthlyVat.payments.filter(payment => payment.payment.getMonth() === now.getMonth())
+      .reduce((total, payment) => total + payment.vat, 0) / 100);
 
   // Animation du solde combiné au verso de la carte URSSAF
   const paidImpots = Math.max(0, (paidTurnoverForTax - IMPOT_SEUIL) * IMPOT_TAUX);

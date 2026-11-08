@@ -684,9 +684,19 @@
             </div>
           </div>
 
-          <div class="metric-card" style="border-top: 3px solid #e53e3e;">
-            <p>Impôts Estimés</p>
-            <h3 id="kpi-impots">0,00 €</h3>
+          <div class="metric-card-container theme-red" role="button" tabindex="0" aria-label="Afficher ou masquer la TVA estimée du mois" aria-pressed="false" onclick="this.classList.toggle('flipped'); this.setAttribute('aria-pressed', this.classList.contains('flipped'))" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
+            <div class="flip-card-inner">
+              <div class="metric-card-front">
+                <p>Impôts Estimés</p>
+                <h3 id="kpi-impots">0,00 €</h3>
+                <span class="flip-hint">Détails ↺</span>
+              </div>
+              <div class="metric-card-back">
+                <h4 id="kpi-vat-month-label">TVA estimée · Mois en cours</h4>
+                <p class="back-value" id="kpi-vat-month-amount">0,00 €</p>
+                <p class="solde-desc">Avant déduction TVA pro</p>
+              </div>
+            </div>
           </div>
 
           <div class="metric-card-container theme-teal" onclick="this.classList.toggle('flipped')">
