@@ -4,7 +4,7 @@ const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': 
 const money = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 const sourceMoney = (cents, currency) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: /^[A-Z]{3}$/.test(currency) ? currency : 'EUR' }).format(cents / 100);
 const labels = { pending: 'À vérifier', approved: 'Validée', missing: 'Justificatif manquant', changed: 'À revalider',
-  excluded: 'Écartée', duplicate: 'Doublon rapproché', manual: 'À examiner', zero: 'Sans TVA détectée' };
+  excluded: 'Écartée', duplicate: 'Déjà associée à une facture', manual: 'À examiner', zero: 'Sans TVA détectée' };
 const dateLabel = value => value ? value.split('-').reverse().join('/') : 'Date à préciser';
 
 export function initVatDeductions({ supabase, userId, onBusy = () => {}, onRefresh = async () => {} }) {
@@ -35,7 +35,7 @@ export function initVatDeductions({ supabase, userId, onBusy = () => {}, onRefre
       <summary><span><strong>${escape(item.supplier)}</strong><small>${escape(dateLabel(item.source_date))}${item.reference ? ` · ${escape(item.reference)}` : ''}</small></span><span class="vat-expense-amount">${sourceMoney(item.amount_cents, item.currency)}<small>TVA ${item.vat_cents === null ? 'à préciser' : sourceMoney(item.vat_cents, item.currency)}</small></span><span class="vat-expense-status ${state === 'approved' ? 'is-approved' : ''}">${labels[state]}</span></summary>
       <div class="vat-expense-body">
         ${item.kind === 'invoice' && /malt/i.test(item.supplier) ? '<p class="fiscal-muted">Commission Malt : règlement par retenue sur mission. Vérifie la date de compensation.</p>' : ''}
-        ${item.provider_duplicate ? '<p class="fiscal-muted">Qonto signale un doublon possible. Vérifie le numéro de facture avant de retenir ce montant.</p>' : ''}
+        ${item.provider_duplicate ? '<p class="fiscal-muted">Qonto signale une facture potentiellement reçue plusieurs fois. Vérifie son numéro avant de retenir ce montant.</p>' : ''}
         ${state === 'changed' ? '<p class="fiscal-muted">Les informations ont changé depuis la validation ou la source n’est plus disponible. Nouvelle vérification nécessaire.</p>' : ''}
         ${item.blocked_reason || item.credit_note ? `<p class="fiscal-muted">${escape(item.credit_note ? 'Avoir : régularisation à examiner hors de ce module.' : item.blocked_reason)}</p>` : ''}
         <div class="fiscal-actions">${item.attachment_ids.length ? `<button class="button button-secondary" type="button" data-expense-document="${escape(item.id)}" ${disabled()}>Voir le justificatif</button>` : '<span class="fiscal-muted">Ajoute la facture dans Qonto puis actualise.</span>'}<a class="button button-secondary" href="https://app.qonto.com/" target="_blank" rel="noopener noreferrer">Ouvrir Qonto ↗</a></div>
@@ -80,9 +80,9 @@ export function initVatDeductions({ supabase, userId, onBusy = () => {}, onRefre
           <button class="button button-secondary" type="submit" ${busy || !loaded || error || (!total.approved && month.deduction_source !== 'receipts') ? 'disabled' : ''}>Utiliser le total validé · ${money(total.amount)}</button>
           <p class="fiscal-muted">Remplace le total du mois ; les montants ne sont jamais ajoutés deux fois.</p>
         </form>`}
-        <label class="vat-expense-filter">Afficher<select aria-label="Filtrer les justificatifs" data-expenses-filter ${disabled()}>${[['todo','À traiter'],['missing','Justificatifs manquants'],['approved','Validés'],['all','Tous, y compris écartés et doublons']].map(([value, label]) => `<option value="${value}" ${filter === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+        <label class="vat-expense-filter">Afficher<select aria-label="Filtrer les justificatifs" data-expenses-filter ${disabled()}>${[['todo','À traiter'],['missing','Justificatifs manquants'],['approved','Validés'],['all','Tous les éléments']].map(([value, label]) => `<option value="${value}" ${filter === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
         <div class="vat-expense-list">${visible.length ? visible.map(rowMarkup).join('') : loaded && !loading && !error ? '<p class="fiscal-muted">Aucun élément dans cette vue. Actualise depuis Qonto après avoir déposé tes factures.</p>' : ''}</div>
-        ${total.duplicates ? `<p class="fiscal-muted">${total.duplicates} doublon(s) rapproché(s), non comptés dans le total.</p>` : ''}
+        ${total.duplicates ? `<p class="fiscal-muted">${total.duplicates} ${total.duplicates === 1 ? 'opération déjà associée' : 'opérations déjà associées'} à une facture. La TVA sera retenue une seule fois, après validation de la facture.</p>` : ''}
         <p class="fiscal-muted">Seuls les justificatifs vérifiés et validés entrent dans le total. Les avoirs, devises et cas particuliers restent à examiner manuellement.</p>
       </div>
     </details>`;
